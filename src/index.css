@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-primary: #F6C646;
+    --color-accent: #FFD455;
+    --color-background: #000000;
+    --color-surface: #151515;
+    --color-surface-hover: #1E1E1E;
+    --color-border: #262626;
+    --color-text: #FFFFFF;
+    --color-muted: #B8B8B8;
+  }
+
+  body {
+    background-color: #000000;
+    color: #FFFFFF;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    overflow-x: hidden;
+  }
+}
+
+/* Quranic Arabic Fonts with optimal fallbacks */
+.font-quran {
+  font-family: 'Amiri', 'Scheherazade New', 'Traditional Arabic', 'Uthmanic', 'Lateef', serif;
+  font-feature-settings: "cv01" 1, "cv02" 1;
+  text-rendering: optimizeLegibility;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0D0D0D;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333333;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #F6C646;
+}
+
+/* Utility classes for black & gold design */
+.bg-surface {
+  background-color: #151515;
+}
+
+.bg-surface-hover {
+  background-color: #1E1E1E;
+}
+
+.border-subtle {
+  border-color: #262626;
+}
+
+.border-gold-subtle {
+  border-color: rgba(246, 198, 70, 0.25);
+}
+
+.text-gold {
+  color: #F6C646;
+}
+
+.text-gold-light {
+  color: #FFD455;
+}
+
+.bg-gold {
+  background-color: #F6C646;
+}
+
+/* Safe area for mobile navigation */
+.pb-safe {
+  padding-bottom: calc(env(safe-area-inset-bottom, 16px) + 4rem);
+}

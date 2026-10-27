@@ -1,0 +1,8 @@
+{
+  "name": " AA Dom Qur\u0027an",
+  "description": "An elegant, modern digital Al-Qur\u0027an app featuring premium black-and-gold design for a focused and immersive reading experience.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
