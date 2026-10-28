@@ -88,8 +88,8 @@ export const PWAInstallButton: React.FC<Props> = ({ className = '', variant = 'p
                 <X className="w-4 h-4" />
               </button>
 
-              <div className="w-12 h-12 rounded-2xl bg-[#FAF3DF] border border-[#E5BD58] flex items-center justify-center mb-4 shadow-xs">
-                <img src="/pwa-192x192.png" alt="Logo" className="w-8 h-8 rounded-lg object-contain" />
+              <div className="w-12 h-12 rounded-2xl bg-[#FAF3DF] border border-[#E5BD58] flex items-center justify-center mb-4 shadow-xs overflow-hidden">
+                <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
               </div>
 
               <h3 className="text-base font-bold text-[#222222] mb-1">Pasang di iPhone / iPad</h3>

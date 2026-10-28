@@ -37,7 +37,7 @@ export const AudioPlayerBar: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-16 landscape:bottom-12 md:bottom-0 left-0 right-0 z-40 bg-white/95 border-t border-[#EAEAEA] backdrop-blur-md px-3 sm:px-6 py-2.5 shadow-lg transition-all text-[#222222]">
+    <div className="fixed bottom-16 landscape:bottom-12 md:bottom-0 left-0 lg:left-64 right-0 z-40 bg-white/95 border-t border-[#EAEAEA] backdrop-blur-md px-3 sm:px-6 py-2.5 shadow-lg transition-all text-[#222222]">
       <div className="max-w-4xl mx-auto flex flex-col gap-1.5">
         {/* Progress Bar (interactive slider) */}
         <div className="flex items-center gap-2 text-[11px] text-[#737373]">

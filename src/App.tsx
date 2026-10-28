@@ -18,7 +18,7 @@ import { quranApi } from './services/quranApi';
 import { prayerTimeService, LocationInfo } from './services/prayerTimeService';
 import { audioManager, ActiveAudioAlert } from './services/audioManager';
 import { prayerScheduler } from './services/prayerScheduler';
-import { getSavedLocation, saveLocation, RegencyCity } from './services/indonesiaRegions';
+import { getActiveLocation, saveActiveLocation, ActiveLocation } from './services/wilayahService';
 import { SurahListItem } from './types/quran';
 
 export default function App() {
@@ -60,10 +60,10 @@ export default function App() {
 
     // Initial sync for scheduler with saved region
     try {
-      const loc = getSavedLocation();
+      const loc = getActiveLocation();
       const locInfo: LocationInfo = {
-        name: loc.name,
-        province: loc.province,
+        name: loc.regencyName,
+        province: loc.provinceName,
         country: 'Indonesia',
         latitude: loc.latitude,
         longitude: loc.longitude,
@@ -90,11 +90,11 @@ export default function App() {
     };
   }, []);
 
-  const handleLocationSelected = (location: RegencyCity & { province: string; district?: string }) => {
-    saveLocation(location);
+  const handleLocationSelected = (location: ActiveLocation) => {
+    saveActiveLocation(location);
     const locInfo: LocationInfo = {
-      name: location.name,
-      province: location.province,
+      name: location.regencyName,
+      province: location.provinceName,
       country: 'Indonesia',
       latitude: location.latitude,
       longitude: location.longitude,
@@ -103,7 +103,6 @@ export default function App() {
     const pt = prayerTimeService.calculatePrayerTimes(locInfo, new Date());
     prayerScheduler.sync(locInfo, pt);
     setIsLocationModalOpen(false);
-    window.dispatchEvent(new CustomEvent('aadom_location_updated', { detail: location }));
   };
 
   // Navigation handlers
@@ -133,84 +132,87 @@ export default function App() {
       {/* Offline Alert Indicator */}
       <OfflineIndicator />
 
-      {/* Navigation Bar (Desktop Header + Mobile Bottom Nav for all 7 core features) */}
+      {/* Navigation Bar (Desktop Left Sidebar + Mobile Bottom Nav) */}
       <Navbar
         currentTab={currentTab}
         onSelectTab={handleSelectTab}
         onOpenLocation={() => setIsLocationModalOpen(true)}
+        onOpenSearch={() => handleSelectTab('search')}
       />
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 pt-4 pb-28 landscape:pb-24 lg:pb-16 min-h-0">
-        {currentTab === 'home' && (
-          <HomePage
-            onNavigate={(tab, surah, ayah) => {
-              if (surah) {
-                handleOpenSurah(surah, ayah);
-              } else {
-                handleSelectTab(tab);
-              }
-            }}
-            onOpenAudioSurah={(surah) => handleOpenSurah(surah)}
-            onOpenLocationModal={() => setIsLocationModalOpen(true)}
-          />
-        )}
+      {/* Main Content Area (Offset for Desktop Left Sidebar lg:ml-64) */}
+      <div className="flex-1 flex flex-col lg:ml-64 min-w-0">
+        <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-4 pb-28 landscape:pb-24 lg:pb-16 min-h-0">
+          {currentTab === 'home' && (
+            <HomePage
+              onNavigate={(tab, surah, ayah) => {
+                if (surah) {
+                  handleOpenSurah(surah, ayah);
+                } else {
+                  handleSelectTab(tab);
+                }
+              }}
+              onOpenAudioSurah={(surah) => handleOpenSurah(surah)}
+              onOpenLocationModal={() => setIsLocationModalOpen(true)}
+            />
+          )}
 
-        {currentTab === 'quran' && (
-          <>
-            {activeSurahNomor ? (
-              <QuranReaderPage
-                surahNomor={activeSurahNomor}
-                initialAyah={targetAyahNomor}
-                onBack={handleBackToSurahList}
-                onSelectSurah={(nextSurah, nextAyah) => handleOpenSurah(nextSurah, nextAyah)}
-              />
-            ) : (
-              <SurahListPage
-                surahs={surahs}
-                loading={loadingSurahs}
-                error={errorSurahs}
-                onRetry={fetchSurahList}
-                onSelectSurah={(nomor) => handleOpenSurah(nomor)}
-              />
-            )}
-          </>
-        )}
+          {currentTab === 'quran' && (
+            <>
+              {activeSurahNomor ? (
+                <QuranReaderPage
+                  surahNomor={activeSurahNomor}
+                  initialAyah={targetAyahNomor}
+                  onBack={handleBackToSurahList}
+                  onSelectSurah={(nextSurah, nextAyah) => handleOpenSurah(nextSurah, nextAyah)}
+                />
+              ) : (
+                <SurahListPage
+                  surahs={surahs}
+                  loading={loadingSurahs}
+                  error={errorSurahs}
+                  onRetry={fetchSurahList}
+                  onSelectSurah={(nomor) => handleOpenSurah(nomor)}
+                />
+              )}
+            </>
+          )}
 
-        {currentTab === 'sholat' && (
-          <PrayerTimesPage
-            onOpenQibla={() => handleSelectTab('kiblat')}
-            onOpenDua={() => handleSelectTab('doa')}
-          />
-        )}
+          {currentTab === 'sholat' && (
+            <PrayerTimesPage
+              onOpenQibla={() => handleSelectTab('kiblat')}
+              onOpenDua={() => handleSelectTab('doa')}
+            />
+          )}
 
-        {currentTab === 'kiblat' && (
-          <QiblaPage
-            onOpenPrayerTimes={() => handleSelectTab('sholat')}
-          />
-        )}
+          {currentTab === 'kiblat' && (
+            <QiblaPage
+              onOpenPrayerTimes={() => handleSelectTab('sholat')}
+            />
+          )}
 
-        {currentTab === 'doa' && (
-          <DoaPage />
-        )}
+          {currentTab === 'doa' && (
+            <DoaPage />
+          )}
 
-        {currentTab === 'search' && (
-          <SearchPage
-            surahs={surahs}
-            onSelectResult={(surahNomor, ayahNomor) => handleOpenSurah(surahNomor, ayahNomor)}
-          />
-        )}
+          {currentTab === 'search' && (
+            <SearchPage
+              surahs={surahs}
+              onSelectResult={(surahNomor, ayahNomor) => handleOpenSurah(surahNomor, ayahNomor)}
+            />
+          )}
 
-        {currentTab === 'bookmark' && (
-          <BookmarkPage
-            onNavigateToAyah={(surahNomor, ayahNomor) => handleOpenSurah(surahNomor, ayahNomor)}
-          />
-        )}
+          {currentTab === 'bookmark' && (
+            <BookmarkPage
+              onNavigateToAyah={(surahNomor, ayahNomor) => handleOpenSurah(surahNomor, ayahNomor)}
+            />
+          )}
 
-        {currentTab === 'settings' && <SettingsPage />}
-      </main>
+          {currentTab === 'settings' && <SettingsPage />}
+        </main>
+      </div>
 
-      {/* Fixed Sticky Audio Player Bar */}
+      {/* Fixed Sticky Audio Player Bar (Offset on desktop for sidebar) */}
       <AudioPlayerBar />
 
       {/* Global Adzan / Prayer Reminder Alert Modal */}

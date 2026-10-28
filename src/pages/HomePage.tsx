@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   BookOpen,
   Search,
@@ -17,17 +17,20 @@ import {
   Bell,
   MapPin,
   Calendar,
-  Layers
+  Layers,
+  Volume2
 } from 'lucide-react';
 import { NavTab } from '../components/Navbar';
 import { quranStorage } from '../storage/quranStorage';
 import { ReadingHistoryItem, DailyProgress, UserSettings } from '../types/quran';
-import { prayerTimeService, LocationInfo, PrayerTimes, NextPrayerInfo } from '../services/prayerTimeService';
-import { getSavedLocation, RegencyCity } from '../services/indonesiaRegions';
+import { prayerTimeService, PrayerTimes, NextPrayerInfo, LocationInfo } from '../services/prayerTimeService';
+import { qiblaService } from '../services/qiblaService';
+import { getActiveLocation, ActiveLocation } from '../services/wilayahService';
 import { SurahFavoritesModal } from '../components/SurahFavoritesModal';
 import { DuaDhikrModal } from '../components/DuaDhikrModal';
 import { AsmaulHusnaModal } from '../components/AsmaulHusnaModal';
 import { LocationModal } from '../components/LocationModal';
+import { TasbihModal } from '../components/TasbihModal';
 
 interface Props {
   onNavigate: (tab: NavTab, surahNomor?: number, ayahNomor?: number) => void;
@@ -35,44 +38,102 @@ interface Props {
   onOpenLocationModal?: () => void;
 }
 
-export const HomePage: React.FC<Props> = ({ onNavigate, onOpenAudioSurah, onOpenLocationModal }) => {
+export const HomePage: React.FC<Props> = ({
+  onNavigate,
+  onOpenAudioSurah,
+  onOpenLocationModal
+}) => {
   const [lastRead, setLastRead] = useState<ReadingHistoryItem | null>(null);
   const [historyList, setHistoryList] = useState<ReadingHistoryItem[]>([]);
   const [dailyProgress, setDailyProgress] = useState<DailyProgress>({ date: '', count: 0 });
   const [settings, setSettings] = useState<UserSettings>(quranStorage.getSettings());
 
-  // Quick Modals state
+  // Location & Prayer Time State
+  const [activeLoc, setActiveLoc] = useState<ActiveLocation>(getActiveLocation());
+  const [prayerTimes, setPrayerTimes] = useState<PrayerTimes>(() => {
+    const loc = getActiveLocation();
+    const locInfo: LocationInfo = {
+      name: loc.regencyName,
+      province: loc.provinceName,
+      country: 'Indonesia',
+      latitude: loc.latitude,
+      longitude: loc.longitude,
+      timezone: loc.timezone,
+      timezoneIana: loc.timezoneIana
+    };
+    return prayerTimeService.calculatePrayerTimes(locInfo, new Date());
+  });
+  const [nextPrayer, setNextPrayer] = useState<NextPrayerInfo>(() => {
+    return prayerTimeService.getNextPrayer(prayerTimes, new Date());
+  });
+  const [qiblaDegree, setQiblaDegree] = useState<number>(() => {
+    const loc = getActiveLocation();
+    return Math.round(qiblaService.calculate(loc.latitude, loc.longitude).bearing);
+  });
+  const [hijriDate, setHijriDate] = useState<string>('');
+  const [gregorianDateStr, setGregorianDateStr] = useState<string>('');
+
+  // Modals state
   const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
   const [isDuaOpen, setIsDuaOpen] = useState(false);
-  const [isAsmaulHusnaOpen, setIsAsmaulHusnaOpen] = useState(false);
-  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+  const [isAsmaulOpen, setIsAsmaulOpen] = useState(false);
+  const [isTasbihOpen, setIsTasbihOpen] = useState(false);
+  const [isInternalLocOpen, setIsInternalLocOpen] = useState(false);
 
-  // Location state
-  const [currentLocation, setCurrentLocation] = useState<RegencyCity & { province: string; district?: string }>(
-    () => getSavedLocation()
-  );
+  // Video motion preference
+  const [canPlayVideo, setCanPlayVideo] = useState<boolean>(true);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
-  const locInfo: LocationInfo = {
-    name: currentLocation.district ? `${currentLocation.district}, ${currentLocation.name}` : currentLocation.name,
-    province: currentLocation.province,
-    country: 'Indonesia',
-    latitude: currentLocation.latitude,
-    longitude: currentLocation.longitude,
-    timezone: currentLocation.timezone,
-    timezoneIana: currentLocation.timezoneIana
-  };
+  // Sync date strings
+  useEffect(() => {
+    const now = new Date();
+    setGregorianDateStr(
+      now.toLocaleDateString('id-ID', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      })
+    );
+    setHijriDate(prayerTimeService.getHijriDate(now));
 
-  const [prayerTimes, setPrayerTimes] = useState<PrayerTimes>(() =>
-    prayerTimeService.calculatePrayerTimes(locInfo, new Date())
-  );
-  const [nextPrayer, setNextPrayer] = useState<NextPrayerInfo>(() =>
-    prayerTimeService.getNextPrayer(prayerTimes, new Date())
-  );
+    // Check reduced motion preference
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (prefersReduced) setCanPlayVideo(false);
+    }
+  }, []);
 
-  const qiblaData = prayerTimeService.calculateQibla(currentLocation.latitude, currentLocation.longitude);
-  const hijriDate = prayerTimeService.getHijriDate(new Date());
+  // Subscribe to location updates
+  useEffect(() => {
+    const updateTimes = (loc: ActiveLocation) => {
+      setActiveLoc(loc);
+      const locInfo: LocationInfo = {
+        name: loc.regencyName,
+        province: loc.provinceName,
+        country: 'Indonesia',
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        timezone: loc.timezone,
+        timezoneIana: loc.timezoneIana
+      };
+      const pt = prayerTimeService.calculatePrayerTimes(locInfo, new Date());
+      setPrayerTimes(pt);
+      setNextPrayer(prayerTimeService.getNextPrayer(pt, new Date()));
+      setQiblaDegree(Math.round(qiblaService.calculate(loc.latitude, loc.longitude).bearing));
+    };
 
-  // Load reading history and progress on mount
+    const handleLocChanged = (e: CustomEvent<ActiveLocation>) => {
+      updateTimes(e.detail);
+    };
+
+    window.addEventListener('mydom_location_changed' as any, handleLocChanged);
+    return () => {
+      window.removeEventListener('mydom_location_changed' as any, handleLocChanged);
+    };
+  }, []);
+
+  // Reload reading data
   useEffect(() => {
     setLastRead(quranStorage.getLastRead());
     setHistoryList(quranStorage.getHistory());
@@ -80,590 +141,521 @@ export const HomePage: React.FC<Props> = ({ onNavigate, onOpenAudioSurah, onOpen
     setSettings(quranStorage.getSettings());
   }, []);
 
-  // Recalculate prayer times when location coordinates change
-  useEffect(() => {
-    const pt = prayerTimeService.calculatePrayerTimes(locInfo, new Date());
-    setPrayerTimes(pt);
-    setNextPrayer(prayerTimeService.getNextPrayer(pt, new Date()));
-  }, [currentLocation.latitude, currentLocation.longitude]);
-
-  // Real-time ticking for next prayer countdown
+  // Real-time ticking for countdown
   useEffect(() => {
     const timer = setInterval(() => {
       const now = new Date();
       setNextPrayer(prayerTimeService.getNextPrayer(prayerTimes, now));
     }, 1000);
-
     return () => clearInterval(timer);
   }, [prayerTimes]);
+
+  // Format countdown into [Jam, Menit, Detik]
+  const countdownParts = (() => {
+    const totalSecs = Math.max(0, nextPrayer.remainingSeconds);
+    const hours = Math.floor(totalSecs / 3600);
+    const minutes = Math.floor((totalSecs % 3600) / 60);
+    const seconds = totalSecs % 60;
+    return {
+      hh: String(hours).padStart(2, '0'),
+      mm: String(minutes).padStart(2, '0'),
+      ss: String(seconds).padStart(2, '0')
+    };
+  })();
 
   const progressPercent = Math.min(
     100,
     Math.round((dailyProgress.count / (settings.dailyTargetAyat || 10)) * 100)
   );
 
-  const handleLocationUpdated = (newLoc: RegencyCity & { province: string; district?: string }) => {
-    setCurrentLocation(newLoc);
-  };
+  const openLocationPicker = onOpenLocationModal || (() => setIsInternalLocOpen(true));
+
+  // 8 Quick Access Cards (matching ref1.png & ref2.png)
+  const quickMenu = [
+    {
+      id: 'baca',
+      label: "Baca Al-Qur'an",
+      icon: BookOpen,
+      action: () => onNavigate('quran', lastRead?.surahNomor || 1, lastRead?.ayahNomor || 1)
+    },
+    {
+      id: 'surah',
+      label: 'Daftar Surah',
+      icon: Layers,
+      action: () => onNavigate('quran')
+    },
+    {
+      id: 'murottal',
+      label: 'Murottal',
+      icon: Headphones,
+      action: () => onOpenAudioSurah(lastRead?.surahNomor || 1)
+    },
+    {
+      id: 'bookmark',
+      label: 'Bookmark',
+      icon: Bookmark,
+      action: () => onNavigate('bookmark')
+    },
+    {
+      id: 'sholat',
+      label: 'Jadwal Salat',
+      icon: Clock,
+      action: () => onNavigate('sholat')
+    },
+    {
+      id: 'kiblat',
+      label: 'Arah Kiblat',
+      icon: Compass,
+      action: () => onNavigate('kiblat')
+    },
+    {
+      id: 'doa',
+      label: 'Doa Harian',
+      icon: Heart,
+      action: () => onNavigate('doa')
+    },
+    {
+      id: 'tasbih',
+      label: 'Tasbih',
+      icon: Sparkles,
+      action: () => setIsTasbihOpen(true)
+    }
+  ];
+
+  // Surah Pilihan items (matching ref1.png & ref2.png)
+  const featuredSurahs = [
+    { nomor: 1, name: 'Al-Fatihah', arabic: 'الفاتحة', ayat: 7, type: 'Makkiyah' },
+    { nomor: 2, name: 'Al-Baqarah', arabic: 'البقرة', ayat: 286, type: 'Madaniyah' },
+    { nomor: 3, name: "Ali 'Imran", arabic: 'آل عمران', ayat: 200, type: 'Madaniyah' }
+  ];
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-200">
-      {/* A. Top Header Greeting & Location Selector */}
-      <section className="bg-white border border-[#EAEAEA] rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF3DF] border border-[#E5BD58]/40 text-xs text-[#C49A3A] font-semibold">
-            <div className="w-4 h-4 rounded-md bg-white border border-[#E5BD58]/40 flex items-center justify-center text-[#C49A3A]">
-              <Sparkles className="w-2.5 h-2.5" />
-            </div>
-            <span>Assalamu'alaikum Warahmatullahi Wabarakatuh</span>
-          </div>
-
-          <h1 className="text-xl sm:text-2xl font-black text-[#222222] tracking-tight">
-            My Dom <span className="text-[#C49A3A]">Qur'an</span>
-          </h1>
-
-          <p className="text-xs text-[#737373]">
-            {hijriDate} • Waktu Ibadah & Tilawah Harian
-          </p>
-        </div>
-
-        {/* Location Pill Button (Clickable to open Location Modal) */}
-        <button
-          onClick={() => setIsLocationModalOpen(true)}
-          className="flex items-center gap-3 p-3 rounded-2xl bg-[#F8F8F8] hover:bg-[#FAF3DF] border border-[#EAEAEA] hover:border-[#E5BD58] transition text-left group shrink-0"
-          title="Klik untuk memilih wilayah & kecamatan"
-        >
-          <div className="w-10 h-10 rounded-xl bg-white border border-[#EAEAEA] group-hover:border-[#E5BD58] flex items-center justify-center text-[#C49A3A] shadow-xs">
-            <MapPin className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-bold text-[#222222] group-hover:text-[#C49A3A] transition-colors">
-                {currentLocation.district ? `Kec. ${currentLocation.district}` : currentLocation.name}
-              </span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded bg-white border border-[#EAEAEA] text-[#737373] font-semibold">
-                Ganti
-              </span>
-            </div>
-            <p className="text-[11px] text-[#737373] truncate max-w-[160px]">
-              {currentLocation.province || 'Indonesia'} (UTC+{currentLocation.timezone})
-            </p>
-          </div>
-        </button>
-      </section>
-
-      {/* B. Hero Section with Makkah Masjidil Haram & Ka'bah Imagery */}
-      <section className="relative overflow-hidden rounded-3xl bg-white border border-[#EAEAEA] shadow-md">
-        {/* Makkah Image Banner */}
-        <div className="relative w-full h-56 sm:h-72 md:h-80 overflow-hidden bg-[#F8F8F8]">
+      {/* =========================================================================
+          A. HERO BANNER KA'BAH WITH VIDEO BACKGROUND (Matching ref1.png & ref2.png)
+      ========================================================================= */}
+      <section className="relative w-full rounded-3xl overflow-hidden shadow-sm border border-[#EAEAEA] min-h-[280px] sm:min-h-[340px] md:min-h-[380px] flex items-center bg-[#111111]">
+        {/* Video / Poster Background */}
+        {canPlayVideo ? (
+          <video
+            ref={videoRef}
+            autoPlay
+            loop
+            muted
+            playsInline
+            poster="/assets/makkah_masjidil_haram.jpg"
+            className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none opacity-90"
+          >
+            <source src="/assets/makkah_hero.mp4" type="video/mp4" />
+          </video>
+        ) : (
           <img
             src="/assets/makkah_masjidil_haram.jpg"
-            alt="Masjidil Haram dan Ka'bah Makkah"
-            className="w-full h-full object-cover object-center transform hover:scale-102 transition-transform duration-700"
+            alt="Ka'bah & Masjidil Haram di Makkah"
+            className="absolute inset-0 w-full h-full object-cover object-center opacity-90"
           />
-          {/* Subtle gradient overlay to enhance readability */}
-          <div className="absolute inset-0 bg-gradient-to-t from-white via-white/40 to-transparent" />
+        )}
 
-          {/* Golden Badge on Image */}
-          <div className="absolute top-4 left-4 z-10 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-white/95 backdrop-blur-md border border-[#EAEAEA] shadow-sm">
-            <div className="w-5 h-5 rounded-md bg-[#FAF3DF] border border-[#E5BD58]/50 flex items-center justify-center text-[#C49A3A]">
-              <Compass className="w-3 h-3" />
-            </div>
-            <span className="text-xs font-extrabold text-[#222222]">
-              Ka'bah Al-Musyarrafah • Kiblat Umat Islam
-            </span>
+        {/* Sophisticated Gradient Overlay ensuring 100% text readability */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent sm:from-black/75 sm:via-black/40 sm:to-black/20" />
+
+        {/* Hero Content Content */}
+        <div className="relative z-10 p-6 sm:p-10 md:p-12 max-w-xl space-y-3.5 text-white">
+          {/* Greeting Badge */}
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-xs font-semibold text-white shadow-2xs">
+            <span className="w-2 h-2 rounded-full bg-[#E5BD58]" />
+            <span>Assalamu'alaikum • Selamat Datang 👋</span>
+          </div>
+
+          {/* Headline in Serif / Bold */}
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight leading-tight font-serif drop-shadow-md">
+            “Dekatkan Hati <br className="hidden sm:inline" />dengan Al-Qur'an”
+          </h1>
+
+          {/* Subtitle */}
+          <p className="text-xs sm:text-sm text-white/90 leading-relaxed font-sans drop-shadow-sm max-w-md">
+            Temani setiap langkah ibadahmu bersama My Dom Qur'an.
+          </p>
+
+          {/* Two CTA Buttons */}
+          <div className="flex flex-wrap items-center gap-3 pt-2">
+            <button
+              onClick={() => onNavigate('quran')}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#C49A3A] hover:bg-[#B3892B] active:scale-98 text-white font-bold text-xs sm:text-sm transition shadow-md"
+            >
+              <div className="w-5 h-5 rounded-md bg-white/20 flex items-center justify-center">
+                <BookOpen className="w-3.5 h-3.5 fill-white" />
+              </div>
+              <span>Baca Al-Qur'an</span>
+            </button>
+
+            <button
+              onClick={() => {
+                if (lastRead) {
+                  onNavigate('quran', lastRead.surahNomor, lastRead.ayahNomor);
+                } else {
+                  onNavigate('quran', 1, 1);
+                }
+              }}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white/90 hover:bg-white text-[#222222] font-semibold text-xs sm:text-sm backdrop-blur-md border border-white/50 transition shadow-sm"
+            >
+              <span>Lanjutkan Bacaan</span>
+              <ChevronRight className="w-4 h-4 text-[#C49A3A]" />
+            </button>
           </div>
         </div>
 
-        {/* Hero Content Body */}
-        <div className="relative z-10 p-6 sm:p-8 -mt-12 bg-white rounded-t-3xl border-t border-[#EAEAEA]">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            <div className="space-y-2 max-w-xl">
-              <h2 className="text-2xl sm:text-3xl font-black text-[#222222] tracking-tight">
-                Dekatkan Hati dengan <span className="text-[#C49A3A]">Al-Qur'an</span>
-              </h2>
-
-              <p className="text-xs sm:text-sm text-[#737373] leading-relaxed">
-                Temani setiap langkah ibadahmu bersama <strong>My Dom Qur'an</strong>. Nikmati kemudahan membaca 114 surat,
-                mendengarkan audio murottal qari internasional, jadwal salat akurat, dan kompas kiblat presisi.
-              </p>
-
-              {/* Action Buttons */}
-              <div className="pt-2 flex flex-wrap items-center gap-3">
-                <button
-                  onClick={() => onNavigate('quran')}
-                  className="flex items-center gap-2.5 px-5 py-2.5 rounded-xl bg-[#C49A3A] hover:bg-[#B3892B] text-white font-bold text-xs sm:text-sm transition shadow-sm"
-                >
-                  <div className="w-5 h-5 rounded-md bg-white/20 flex items-center justify-center">
-                    <BookOpen className="w-3.5 h-3.5 text-white" />
-                  </div>
-                  <span>Baca Al-Qur'an</span>
-                </button>
-
-                {lastRead ? (
-                  <button
-                    onClick={() => onNavigate('quran', lastRead.surahNomor, lastRead.ayahNomor)}
-                    className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-[#FAF3DF] hover:bg-[#F3E7C4] border border-[#E5BD58] text-[#C49A3A] font-bold text-xs sm:text-sm transition shadow-2xs"
-                  >
-                    <div className="w-5 h-5 rounded-md bg-white border border-[#E5BD58]/50 flex items-center justify-center text-[#C49A3A]">
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </div>
-                    <span>Lanjut Ayat {lastRead.ayahNomor} ({lastRead.surahLatin})</span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => onNavigate('sholat')}
-                    className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-[#F8F8F8] hover:bg-[#FAF3DF] border border-[#EAEAEA] text-[#222222] font-semibold text-xs sm:text-sm transition"
-                  >
-                    <div className="w-5 h-5 rounded-md bg-white border border-[#EAEAEA] flex items-center justify-center text-[#C49A3A]">
-                      <Clock className="w-3.5 h-3.5" />
-                    </div>
-                    <span>Jadwal Salat & Adzan</span>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Next Prayer Floating Card inside Hero */}
-            <div className="w-full md:w-auto p-4 sm:p-5 rounded-2xl bg-[#F8F8F8] border border-[#EAEAEA] shadow-2xs flex flex-row md:flex-col justify-between items-center md:items-start gap-3 min-w-[220px]">
-              <div className="space-y-1">
-                <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#C49A3A] uppercase tracking-wider">
-                  <div className="w-4 h-4 rounded-md bg-[#FAF3DF] border border-[#E5BD58]/40 flex items-center justify-center text-[#C49A3A]">
-                    <Clock className="w-2.5 h-2.5" />
-                  </div>
-                  <span>Salat Berikutnya</span>
-                </div>
-                <div className="text-xl sm:text-2xl font-black text-[#222222] font-mono">
-                  {nextPrayer.name} <span className="text-[#C49A3A]">{nextPrayer.time}</span>
-                </div>
-                <p className="text-[11px] text-[#737373]">
-                  Tersisa: <strong className="text-[#222222] font-mono">{nextPrayer.formattedRemaining}</strong>
-                </p>
-              </div>
-
-              <button
-                onClick={() => onNavigate('sholat')}
-                className="px-3.5 py-1.5 rounded-xl bg-white border border-[#EAEAEA] hover:border-[#C49A3A] text-xs font-bold text-[#222222] hover:text-[#C49A3A] transition flex items-center gap-1 shrink-0"
-              >
-                <span>Lihat Semua</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
+        {/* Carousel indicator dots (visual matching ref2.png) */}
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-10">
+          <span className="w-5 h-1.5 rounded-full bg-[#E5BD58]" />
+          <span className="w-1.5 h-1.5 rounded-full bg-white/50" />
+          <span className="w-1.5 h-1.5 rounded-full bg-white/50" />
+          <span className="w-1.5 h-1.5 rounded-full bg-white/50" />
         </div>
       </section>
 
-      {/* C. Quick Prayer Time Mini Bar & Qibla Direction Card */}
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Prayer Time Overview Card */}
-        <div className="bg-white border border-[#EAEAEA] rounded-3xl p-5 shadow-xs flex flex-col justify-between space-y-3">
-          <div className="flex items-center justify-between pb-2 border-b border-[#EAEAEA]">
+      {/* =========================================================================
+          B. INFORMASI IBADAH (Matching 3-Cards Desktop in ref1.png & Mobile ref2.png)
+      ========================================================================= */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+        {/* Card 1: Waktu Salat Berikutnya & Hitung Mundur */}
+        <div className="p-5 rounded-3xl bg-white border border-[#EAEAEA] shadow-xs flex flex-col justify-between space-y-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-[#FAF3DF] border border-[#E5BD58]/40 flex items-center justify-center text-[#C49A3A]">
+              <div className="w-9 h-9 rounded-xl bg-[#FAF3DF] border border-[#E5BD58] flex items-center justify-center text-[#C49A3A] shadow-2xs">
                 <Clock className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-xs font-bold text-[#222222] uppercase tracking-wide">
-                  Jadwal Salat Hari Ini
+                <span className="text-[11px] font-bold text-[#737373] uppercase tracking-wider block">
+                  Waktu Salat Berikutnya
+                </span>
+                <h3 className="text-lg font-black text-[#222222]">
+                  {nextPrayer.name}
                 </h3>
-                <p className="text-[11px] text-[#737373]">{currentLocation.name}</p>
               </div>
             </div>
 
+            <div className="px-3 py-1.5 rounded-xl bg-[#FAF3DF] border border-[#E5BD58]/50 text-right">
+              <span className="text-xs font-mono font-black text-[#C49A3A] block">
+                {nextPrayer.time}
+              </span>
+              <span className="text-[9px] text-[#737373] block uppercase font-bold">
+                {activeLoc.timezone === 8 ? 'WITA' : activeLoc.timezone === 9 ? 'WIT' : 'WIB'}
+              </span>
+            </div>
+          </div>
+
+          {/* Countdown Clock Boxes: [Jam] : [Menit] : [Detik] */}
+          <div className="p-3 bg-[#F8F8F8] rounded-2xl border border-[#EAEAEA] flex items-center justify-around text-center">
+            <div>
+              <span className="font-mono text-xl font-black text-[#222222]">{countdownParts.hh}</span>
+              <span className="text-[10px] text-[#737373] block font-medium">Jam</span>
+            </div>
+            <span className="text-lg font-bold text-[#C49A3A] pb-3">:</span>
+            <div>
+              <span className="font-mono text-xl font-black text-[#222222]">{countdownParts.mm}</span>
+              <span className="text-[10px] text-[#737373] block font-medium">Menit</span>
+            </div>
+            <span className="text-lg font-bold text-[#C49A3A] pb-3">:</span>
+            <div>
+              <span className="font-mono text-xl font-black text-[#222222]">{countdownParts.ss}</span>
+              <span className="text-[10px] text-[#737373] block font-medium">Detik</span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between text-[11px] text-[#737373] pt-1 border-t border-[#EAEAEA]">
+            <span>{gregorianDateStr}</span>
+            <span className="font-semibold text-[#C49A3A]">{hijriDate}</span>
+          </div>
+        </div>
+
+        {/* Card 2: Jadwal Salat Hari Ini (Summary) */}
+        <div className="p-5 rounded-3xl bg-white border border-[#EAEAEA] shadow-xs flex flex-col justify-between space-y-3">
+          <div className="flex items-center justify-between border-b border-[#EAEAEA] pb-2.5">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-[#C49A3A]" />
+              <span className="text-xs font-bold text-[#222222]">Jadwal Hari Ini</span>
+            </div>
             <button
               onClick={() => onNavigate('sholat')}
-              className="text-xs text-[#C49A3A] hover:underline font-bold flex items-center gap-1"
+              className="text-[11px] font-semibold text-[#C49A3A] hover:underline"
             >
-              <span>Detail</span>
-              <ChevronRight className="w-3.5 h-3.5" />
+              Lihat Lengkap &rarr;
             </button>
           </div>
 
-          {/* Quick Row of 5 Daily Prayers + Imsak */}
-          <div className="grid grid-cols-6 gap-1.5 text-center">
-            {[
-              { name: 'Imsak', time: prayerTimes.imsak, active: nextPrayer.name === 'Imsak' },
-              { name: 'Subuh', time: prayerTimes.subuh, active: nextPrayer.name === 'Subuh' },
-              { name: 'Dzuhur', time: prayerTimes.dzuhur, active: nextPrayer.name === 'Dzuhur' },
-              { name: 'Ashar', time: prayerTimes.ashar, active: nextPrayer.name === 'Ashar' },
-              { name: 'Maghrib', time: prayerTimes.maghrib, active: nextPrayer.name === 'Maghrib' },
-              { name: 'Isya', time: prayerTimes.isya, active: nextPrayer.name === 'Isya' }
-            ].map((p) => (
-              <div
-                key={p.name}
-                className={`py-2 px-1 rounded-xl border transition ${
-                  p.active
-                    ? 'bg-[#FAF3DF] border-[#C49A3A] text-[#C49A3A] font-bold shadow-xs'
-                    : 'bg-[#F8F8F8] border-[#EAEAEA] text-[#737373]'
-                }`}
-              >
-                <div className="text-[10px] font-bold">{p.name}</div>
-                <div className="text-xs font-mono font-bold mt-0.5">{p.time}</div>
-              </div>
-            ))}
+          <div className="grid grid-cols-2 gap-y-1.5 gap-x-3 text-xs">
+            <div className="flex items-center justify-between py-0.5">
+              <span className="text-[#737373]">Imsak</span>
+              <span className="font-mono font-bold text-[#222222]">{prayerTimes.imsak}</span>
+            </div>
+            <div className="flex items-center justify-between py-0.5">
+              <span className="text-[#737373]">Subuh</span>
+              <span className="font-mono font-bold text-[#222222]">{prayerTimes.subuh}</span>
+            </div>
+            <div className="flex items-center justify-between py-0.5">
+              <span className="text-[#737373]">Terbit</span>
+              <span className="font-mono font-bold text-[#222222]">{prayerTimes.terbit}</span>
+            </div>
+            <div className="flex items-center justify-between py-0.5">
+              <span className="text-[#737373]">Dzuhur</span>
+              <span className="font-mono font-bold text-[#222222]">{prayerTimes.dzuhur}</span>
+            </div>
+            <div className="flex items-center justify-between py-0.5">
+              <span className="text-[#737373]">Ashar</span>
+              <span className="font-mono font-bold text-[#222222]">{prayerTimes.ashar}</span>
+            </div>
+            <div className="flex items-center justify-between py-0.5 bg-[#FAF3DF] px-1.5 rounded-md border border-[#E5BD58]/30">
+              <span className="text-[#C49A3A] font-bold">Maghrib</span>
+              <span className="font-mono font-bold text-[#C49A3A]">{prayerTimes.maghrib}</span>
+            </div>
+            <div className="flex items-center justify-between py-0.5 col-span-2">
+              <span className="text-[#737373]">Isya</span>
+              <span className="font-mono font-bold text-[#222222]">{prayerTimes.isya}</span>
+            </div>
+          </div>
+
+          <div className="text-[11px] text-[#737373] text-center bg-[#F8F8F8] py-1 rounded-xl border border-[#EAEAEA]">
+            Metode: <strong className="text-[#222222] font-semibold">{prayerTimes.methodName}</strong>
           </div>
         </div>
 
-        {/* Qibla Direction Overview Card */}
-        <div className="bg-white border border-[#EAEAEA] rounded-3xl p-5 shadow-xs flex items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-[#FAF3DF] border border-[#E5BD58]/40 flex items-center justify-center text-[#C49A3A]">
+        {/* Card 3: Arah Kiblat & Lokasi Aktif */}
+        <div className="p-5 rounded-3xl bg-white border border-[#EAEAEA] shadow-xs flex flex-col justify-between space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-[#FAF3DF] border border-[#E5BD58] flex items-center justify-center text-[#C49A3A] shadow-2xs">
                 <Compass className="w-4 h-4" />
               </div>
-              <h3 className="text-xs font-bold text-[#222222] uppercase tracking-wide">
-                Arah Kiblat • {qiblaData.compassDirection}
-              </h3>
+              <div>
+                <span className="text-[11px] font-bold text-[#737373] uppercase tracking-wider block">
+                  Arah Kiblat
+                </span>
+                <h3 className="text-base font-black text-[#222222]">
+                  {qiblaDegree}° dari Utara
+                </h3>
+              </div>
             </div>
-            <div className="text-2xl font-black text-[#222222] font-mono mt-1">
-              {qiblaData.bearing}° <span className="text-xs font-normal text-[#737373]">dari Utara Sejati</span>
+
+            <button
+              onClick={() => onNavigate('kiblat')}
+              className="px-3.5 py-1.5 rounded-xl bg-[#C49A3A] hover:bg-[#B3892B] text-white text-xs font-bold transition shadow-2xs"
+            >
+              Lihat Arah &rarr;
+            </button>
+          </div>
+
+          {/* Active Location Display */}
+          <div className="p-3 bg-[#F8F8F8] rounded-2xl border border-[#EAEAEA] space-y-1">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-[#737373] flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-[#C49A3A]" />
+                Lokasi Aktif:
+              </span>
+              <button
+                onClick={openLocationPicker}
+                className="text-[11px] font-bold text-[#C49A3A] hover:underline"
+              >
+                Ganti Lokasi
+              </button>
             </div>
-            <p className="text-[11px] text-[#737373]">
-              Jarak ke Ka'bah: {qiblaData.distanceKm.toLocaleString('id-ID')} km
+            <p className="text-xs font-bold text-[#222222] truncate">
+              {activeLoc.displayName}
             </p>
           </div>
 
-          <button
-            onClick={() => onNavigate('kiblat')}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#C49A3A] hover:bg-[#B3892B] text-white font-bold text-xs transition shadow-sm shrink-0"
-          >
-            <div className="w-5 h-5 rounded-md bg-white/20 flex items-center justify-center text-white">
-              <Compass className="w-3.5 h-3.5" />
-            </div>
-            <span>Kompas Kiblat</span>
-          </button>
+          <p className="text-[11px] text-[#737373] leading-relaxed">
+            Perhitungan geodesik Ka'bah Makkah (21.4225° N, 39.8262° E).
+          </p>
         </div>
       </section>
 
-      {/* D. Menu Utama (Every icon inside a rounded-square box!) */}
-      <section aria-labelledby="quick-access-heading">
-        <div className="flex items-center justify-between mb-3 px-1">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-[#FAF3DF] border border-[#E5BD58]/40 flex items-center justify-center text-[#C49A3A]">
-              <Layers className="w-3.5 h-3.5" />
-            </div>
-            <h2 id="quick-access-heading" className="text-xs font-bold text-[#737373] uppercase tracking-wider">
-              Menu Utama & Fitur Unggulan
-            </h2>
-          </div>
-          <span className="text-[11px] font-bold text-[#C49A3A]">Terintegrasi & Lengkap</span>
+      {/* =========================================================================
+          C. MENU UTAMA / AKSES CEPAT (8 BOXED ICONS - Matching ref1.png & ref2.png)
+      ========================================================================= */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between px-1">
+          <h2 className="text-sm font-bold text-[#222222]">Akses Cepat</h2>
+          <span className="text-xs text-[#737373]">8 Fitur Utama Ibadah</span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {/* 1. Al-Qur'an (114 Surah) */}
-          <button
-            onClick={() => onNavigate('quran')}
-            className="flex flex-col items-start p-4 rounded-2xl bg-white border border-[#EAEAEA] hover:border-[#C49A3A] hover:bg-[#FAF3DF]/30 transition text-left group shadow-xs"
-          >
-            <div className="w-11 h-11 rounded-2xl bg-[#F8F8F8] group-hover:bg-[#FAF3DF] border border-[#EAEAEA] group-hover:border-[#E5BD58] flex items-center justify-center text-[#C49A3A] mb-3 group-hover:scale-105 transition-transform shadow-2xs">
-              <BookOpen className="w-5 h-5" />
-            </div>
-            <h3 className="text-xs sm:text-sm font-bold text-[#222222]">Baca Al-Qur'an</h3>
-            <p className="text-[11px] text-[#737373] mt-0.5">114 Surat Lengkap 30 Juz</p>
-          </button>
-
-          {/* 2. Jadwal Salat & Adzan */}
-          <button
-            onClick={() => onNavigate('sholat')}
-            className="flex flex-col items-start p-4 rounded-2xl bg-white border border-[#EAEAEA] hover:border-[#C49A3A] hover:bg-[#FAF3DF]/30 transition text-left group shadow-xs"
-          >
-            <div className="w-11 h-11 rounded-2xl bg-[#F8F8F8] group-hover:bg-[#FAF3DF] border border-[#EAEAEA] group-hover:border-[#E5BD58] flex items-center justify-center text-[#C49A3A] mb-3 group-hover:scale-105 transition-transform shadow-2xs">
-              <Clock className="w-5 h-5" />
-            </div>
-            <h3 className="text-xs sm:text-sm font-bold text-[#222222]">Jadwal Salat</h3>
-            <p className="text-[11px] text-[#737373] mt-0.5">Audio Pengingat & Imsak</p>
-          </button>
-
-          {/* 3. Arah Kiblat */}
-          <button
-            onClick={() => onNavigate('kiblat')}
-            className="flex flex-col items-start p-4 rounded-2xl bg-white border border-[#EAEAEA] hover:border-[#C49A3A] hover:bg-[#FAF3DF]/30 transition text-left group shadow-xs"
-          >
-            <div className="w-11 h-11 rounded-2xl bg-[#F8F8F8] group-hover:bg-[#FAF3DF] border border-[#EAEAEA] group-hover:border-[#E5BD58] flex items-center justify-center text-[#C49A3A] mb-3 group-hover:scale-105 transition-transform shadow-2xs">
-              <Compass className="w-5 h-5" />
-            </div>
-            <h3 className="text-xs sm:text-sm font-bold text-[#222222]">Arah Kiblat</h3>
-            <p className="text-[11px] text-[#737373] mt-0.5">Kompas Geodesik Presisi</p>
-          </button>
-
-          {/* 4. Doa Harian & Dzikir */}
-          <button
-            onClick={() => onNavigate('doa')}
-            className="flex flex-col items-start p-4 rounded-2xl bg-white border border-[#EAEAEA] hover:border-[#C49A3A] hover:bg-[#FAF3DF]/30 transition text-left group shadow-xs"
-          >
-            <div className="w-11 h-11 rounded-2xl bg-[#F8F8F8] group-hover:bg-[#FAF3DF] border border-[#EAEAEA] group-hover:border-[#E5BD58] flex items-center justify-center text-[#C49A3A] mb-3 group-hover:scale-105 transition-transform shadow-2xs">
-              <Heart className="w-5 h-5" />
-            </div>
-            <h3 className="text-xs sm:text-sm font-bold text-[#222222]">Doa Harian & Dzikir</h3>
-            <p className="text-[11px] text-[#737373] mt-0.5">Kumpulan Doa Shahih</p>
-          </button>
-
-          {/* 5. Surat Pilihan */}
-          <button
-            onClick={() => setIsFavoritesOpen(true)}
-            className="flex flex-col items-start p-4 rounded-2xl bg-white border border-[#EAEAEA] hover:border-[#C49A3A] hover:bg-[#FAF3DF]/30 transition text-left group shadow-xs"
-          >
-            <div className="w-11 h-11 rounded-2xl bg-[#F8F8F8] group-hover:bg-[#FAF3DF] border border-[#EAEAEA] group-hover:border-[#E5BD58] flex items-center justify-center text-[#C49A3A] mb-3 group-hover:scale-105 transition-transform shadow-2xs">
-              <Star className="w-5 h-5" />
-            </div>
-            <h3 className="text-xs sm:text-sm font-bold text-[#222222]">Surat Pilihan</h3>
-            <p className="text-[11px] text-[#737373] mt-0.5">Yasin, Al-Kahf, Al-Mulk</p>
-          </button>
-
-          {/* 6. 99 Asmaul Husna */}
-          <button
-            onClick={() => setIsAsmaulHusnaOpen(true)}
-            className="flex flex-col items-start p-4 rounded-2xl bg-white border border-[#EAEAEA] hover:border-[#C49A3A] hover:bg-[#FAF3DF]/30 transition text-left group shadow-xs"
-          >
-            <div className="w-11 h-11 rounded-2xl bg-[#F8F8F8] group-hover:bg-[#FAF3DF] border border-[#EAEAEA] group-hover:border-[#E5BD58] flex items-center justify-center text-[#C49A3A] mb-3 group-hover:scale-105 transition-transform shadow-2xs">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <h3 className="text-xs sm:text-sm font-bold text-[#222222]">99 Asmaul Husna</h3>
-            <p className="text-[11px] text-[#737373] mt-0.5">Nama Indah Allah SWT</p>
-          </button>
-
-          {/* 7. Pencarian Ayat */}
-          <button
-            onClick={() => onNavigate('search')}
-            className="flex flex-col items-start p-4 rounded-2xl bg-white border border-[#EAEAEA] hover:border-[#C49A3A] hover:bg-[#FAF3DF]/30 transition text-left group shadow-xs"
-          >
-            <div className="w-11 h-11 rounded-2xl bg-[#F8F8F8] group-hover:bg-[#FAF3DF] border border-[#EAEAEA] group-hover:border-[#E5BD58] flex items-center justify-center text-[#C49A3A] mb-3 group-hover:scale-105 transition-transform shadow-2xs">
-              <Search className="w-5 h-5" />
-            </div>
-            <h3 className="text-xs sm:text-sm font-bold text-[#222222]">Pencarian Ayat</h3>
-            <p className="text-[11px] text-[#737373] mt-0.5">Cari Kata & Terjemahan</p>
-          </button>
-
-          {/* 8. Bookmark & Catatan */}
-          <button
-            onClick={() => onNavigate('bookmark')}
-            className="flex flex-col items-start p-4 rounded-2xl bg-white border border-[#EAEAEA] hover:border-[#C49A3A] hover:bg-[#FAF3DF]/30 transition text-left group shadow-xs"
-          >
-            <div className="w-11 h-11 rounded-2xl bg-[#F8F8F8] group-hover:bg-[#FAF3DF] border border-[#EAEAEA] group-hover:border-[#E5BD58] flex items-center justify-center text-[#C49A3A] mb-3 group-hover:scale-105 transition-transform shadow-2xs">
-              <Bookmark className="w-5 h-5" />
-            </div>
-            <h3 className="text-xs sm:text-sm font-bold text-[#222222]">Bookmark & Catatan</h3>
-            <p className="text-[11px] text-[#737373] mt-0.5">Ayat Disimpan & Tadabbur</p>
-          </button>
-        </div>
-      </section>
-
-      {/* E. Two-Column Dashboard: Last Read + Daily Tilawah Progress */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Lanjutkan Membaca (Continue Reading) */}
-        <section aria-labelledby="last-read-heading" className="bg-white border border-[#EAEAEA] rounded-3xl p-5 sm:p-6 flex flex-col justify-between shadow-xs">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-[#FAF3DF] border border-[#E5BD58]/40 flex items-center justify-center text-[#C49A3A]">
-                  <BookOpen className="w-4 h-4" />
+        <div className="grid grid-cols-4 sm:grid-cols-4 lg:grid-cols-8 gap-2.5 sm:gap-3">
+          {quickMenu.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                onClick={item.action}
+                className="flex flex-col items-center justify-center p-3 sm:p-3.5 rounded-2xl bg-white hover:bg-[#FAF3DF]/50 border border-[#EAEAEA] hover:border-[#E5BD58] transition shadow-xs group"
+              >
+                {/* Boxed Icon Rule: Exactly enclosed in rounded-square */}
+                <div className="w-11 h-11 rounded-2xl bg-[#FAF3DF] border border-[#E5BD58] group-hover:scale-105 group-hover:bg-[#C49A3A] text-[#C49A3A] group-hover:text-white transition flex items-center justify-center shadow-2xs mb-2">
+                  <Icon className="w-5 h-5" />
                 </div>
-                <h2 id="last-read-heading" className="text-xs font-bold text-[#222222] tracking-wide uppercase">
-                  Lanjutkan Membaca
-                </h2>
-              </div>
-              {lastRead && (
-                <span className="text-[11px] text-[#737373] bg-[#F8F8F8] px-2 py-0.5 rounded-full border border-[#EAEAEA]">
-                  Tersimpan di perangkat
+                <span className="text-[11px] font-semibold text-[#222222] text-center leading-tight truncate w-full">
+                  {item.label}
                 </span>
-              )}
-            </div>
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
-            {lastRead ? (
-              <div className="space-y-1.5 py-2">
-                <h3 className="text-xl font-bold text-[#222222]">
-                  Surat {lastRead.surahLatin}
-                </h3>
-                <p className="text-sm font-bold text-[#C49A3A]">
-                  Ayat ke-{lastRead.ayahNomor}
-                </p>
-                <p className="text-xs text-[#737373]">
-                  Surat ke-{lastRead.surahNomor} • {lastRead.surahName}
-                </p>
-              </div>
-            ) : (
-              <div className="py-4 text-center sm:text-left space-y-1">
-                <h3 className="text-base font-bold text-[#222222]">Mulai Tilawah Hari Ini</h3>
-                <p className="text-xs text-[#737373] leading-relaxed">
-                  Buka surat pilihan Anda, posisi ayat terakhir akan otomatis tersimpan.
-                </p>
-              </div>
+      {/* =========================================================================
+          D. LANJUTKAN BACAAN & SURAH PILIHAN (Matching ref1.png & ref2.png)
+      ========================================================================= */}
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        {/* Left Column: Lanjutkan Bacaan (5 Cols on Desktop) */}
+        <div className="lg:col-span-5 p-5 rounded-3xl bg-white border border-[#EAEAEA] shadow-xs flex flex-col justify-between space-y-4">
+          <div className="flex items-center justify-between border-b border-[#EAEAEA] pb-3">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-[#C49A3A]" />
+              <h3 className="text-xs font-bold text-[#222222] uppercase tracking-wider">
+                Lanjutkan Bacaan
+              </h3>
+            </div>
+            {lastRead && (
+              <span className="text-[11px] text-[#737373]">
+                {lastRead.timestamp ? new Date(lastRead.timestamp).toLocaleDateString('id-ID') : 'Terakhir'}
+              </span>
             )}
           </div>
 
-          <div className="pt-4 mt-2 border-t border-[#EAEAEA]">
-            {lastRead ? (
-              <button
-                onClick={() => onNavigate('quran', lastRead.surahNomor, lastRead.ayahNomor)}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#C49A3A] hover:bg-[#B3892B] text-white font-bold text-xs sm:text-sm transition shadow-sm"
-              >
-                <span>Lanjut Tilawah (Ayat {lastRead.ayahNomor})</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            ) : (
-              <button
-                onClick={() => onNavigate('quran', 1, 1)}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#C49A3A] hover:bg-[#B3892B] text-white font-bold text-xs sm:text-sm transition shadow-sm"
-              >
-                <span>Mulai dari Surat Al-Fatihah</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        </section>
-
-        {/* Progres Tilawah Harian (Daily Tilawah Progress) */}
-        <section aria-labelledby="tilawah-target-heading" className="bg-white border border-[#EAEAEA] rounded-3xl p-5 sm:p-6 flex flex-col justify-between shadow-xs">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-[#FAF3DF] border border-[#E5BD58]/40 flex items-center justify-center text-[#C49A3A]">
-                  <Flame className="w-4 h-4" />
-                </div>
-                <h2 id="tilawah-target-heading" className="text-xs font-bold text-[#222222] tracking-wide uppercase">
-                  Target Tilawah Hari Ini
-                </h2>
-              </div>
-              <button
-                onClick={() => onNavigate('settings')}
-                className="text-[11px] font-bold text-[#C49A3A] hover:underline"
-              >
-                Ubah Target
-              </button>
-            </div>
-
-            <div className="flex items-center justify-between gap-4 py-1">
-              <div>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl font-black text-[#222222] font-mono">{dailyProgress.count}</span>
-                  <span className="text-xs text-[#737373]">/ {settings.dailyTargetAyat} ayat</span>
-                </div>
-                <p className="text-xs text-[#737373] mt-1">
-                  {dailyProgress.count >= settings.dailyTargetAyat ? (
-                    <span className="text-[#21865B] font-bold flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Target harian tercapai! Alhamdulillah
-                    </span>
-                  ) : (
-                    <span>Tersisa {Math.max(0, settings.dailyTargetAyat - dailyProgress.count)} ayat lagi untuk mencapai target</span>
-                  )}
-                </p>
+          {lastRead ? (
+            <div className="flex items-center gap-4">
+              {/* Qur'an Book Cover Thumbnail */}
+              <div className="w-14 h-16 rounded-xl bg-gradient-to-br from-[#FAF3DF] to-[#E5BD58] border border-[#E5BD58] shadow-xs flex items-center justify-center text-[#C49A3A] shrink-0 font-quran text-xl font-bold">
+                قرآن
               </div>
 
-              <div className="w-14 h-14 rounded-full border-4 border-[#EAEAEA] flex items-center justify-center relative bg-[#F8F8F8] shrink-0">
-                <span className="text-xs font-black text-[#C49A3A] font-mono">{progressPercent}%</span>
-              </div>
-            </div>
-
-            {/* Progress bar */}
-            <div className="w-full bg-[#F8F8F8] rounded-full h-2.5 mt-4 overflow-hidden border border-[#EAEAEA]">
-              <div
-                className="bg-[#C49A3A] h-full rounded-full transition-all duration-500 shadow-xs"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-          </div>
-
-          <div className="pt-4 mt-2 border-t border-[#EAEAEA] flex items-center justify-between text-xs text-[#737373]">
-            <span>{new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short' })}</span>
-            <button
-              onClick={() => {
-                if (confirm('Reset hitungan ayat hari ini?')) {
-                  quranStorage.resetDailyProgress();
-                  setDailyProgress(quranStorage.getDailyProgress());
-                }
-              }}
-              className="flex items-center gap-1 text-[#737373] hover:text-[#C49A3A] transition"
-              title="Reset hitungan harian"
-            >
-              <RotateCcw className="w-3 h-3" />
-              <span>Reset</span>
-            </button>
-          </div>
-        </section>
-      </div>
-
-      {/* F. Surat Terakhir Dibuka (Recently Opened Surahs) */}
-      {historyList.length > 0 && (
-        <section aria-labelledby="history-heading">
-          <div className="flex items-center justify-between mb-3 px-1">
-            <h2 id="history-heading" className="text-xs font-bold text-[#737373] uppercase tracking-wider">
-              Surat Terakhir Dibuka
-            </h2>
-            <button
-              onClick={() => {
-                if (confirm('Hapus seluruh riwayat surat yang pernah dibuka?')) {
-                  quranStorage.clearHistory();
-                  setHistoryList([]);
-                  setLastRead(null);
-                }
-              }}
-              className="text-[11px] text-[#737373] hover:text-red-500 transition"
-            >
-              Hapus Riwayat
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-            {historyList.slice(0, 6).map((item) => (
-              <button
-                key={item.surahNomor}
-                onClick={() => onNavigate('quran', item.surahNomor, item.ayahNomor)}
-                className="flex items-center justify-between p-3.5 rounded-2xl bg-white border border-[#EAEAEA] hover:border-[#C49A3A] hover:bg-[#FAF3DF]/20 transition group text-left shadow-2xs"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-[#F8F8F8] border border-[#EAEAEA] group-hover:border-[#E5BD58] group-hover:bg-white flex items-center justify-center text-xs font-bold text-[#C49A3A] font-mono transition">
-                    {String(item.surahNomor).padStart(2, '0')}
-                  </div>
-                  <div>
-                    <h3 className="text-xs sm:text-sm font-bold text-[#222222] group-hover:text-[#C49A3A] transition-colors">
-                      {item.surahLatin}
-                    </h3>
-                    <p className="text-[11px] text-[#737373]">Ayat terakhir: {item.ayahNomor}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-quran text-sm text-[#C49A3A] hidden sm:inline" dir="rtl">
-                    {item.surahName}
+              <div className="flex-1 min-w-0 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-[#222222] truncate">
+                    Surat {lastRead.surahLatin}
+                  </h4>
+                  <span className="font-quran text-base text-[#C49A3A]">
+                    {lastRead.surahName}
                   </span>
-                  <div className="w-6 h-6 rounded-lg bg-[#F8F8F8] flex items-center justify-center text-[#737373] group-hover:text-[#C49A3A] group-hover:bg-[#FAF3DF] transition">
-                    <ChevronRight className="w-3.5 h-3.5" />
+                </div>
+
+                <p className="text-xs text-[#737373]">
+                  Ayat {lastRead.ayahNomor}
+                </p>
+
+                {/* Progress bar */}
+                <div className="w-full bg-[#EAEAEA] h-2 rounded-full overflow-hidden">
+                  <div
+                    className="bg-[#C49A3A] h-full rounded-full transition-all duration-300"
+                    style={{ width: `${progressPercent || 35}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-4 space-y-1.5">
+              <p className="text-xs text-[#737373]">Belum ada riwayat bacaan terakhir.</p>
+              <p className="text-[11px] text-[#C49A3A] font-semibold">
+                Mulai tilawah dari Surat Al-Fatihah sekarang.
+              </p>
+            </div>
+          )}
+
+          <button
+            onClick={() => {
+              if (lastRead) {
+                onNavigate('quran', lastRead.surahNomor, lastRead.ayahNomor);
+              } else {
+                onNavigate('quran', 1, 1);
+              }
+            }}
+            className="w-full py-2.5 rounded-xl bg-[#C49A3A] hover:bg-[#B3892B] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-xs"
+          >
+            <span>Lanjutkan Bacaan</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Right Column: Surah Pilihan (7 Cols on Desktop) */}
+        <div className="lg:col-span-7 p-5 rounded-3xl bg-white border border-[#EAEAEA] shadow-xs flex flex-col justify-between space-y-4">
+          <div className="flex items-center justify-between border-b border-[#EAEAEA] pb-3">
+            <div className="flex items-center gap-2">
+              <Star className="w-4 h-4 text-[#C49A3A] fill-[#C49A3A]" />
+              <h3 className="text-xs font-bold text-[#222222] uppercase tracking-wider">
+                Surah Pilihan
+              </h3>
+            </div>
+            <button
+              onClick={() => onNavigate('quran')}
+              className="text-xs font-semibold text-[#C49A3A] hover:underline"
+            >
+              Lihat Semua &rarr;
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            {featuredSurahs.map((s) => (
+              <button
+                key={s.nomor}
+                onClick={() => onNavigate('quran', s.nomor)}
+                className="p-3.5 rounded-2xl bg-[#F8F8F8] hover:bg-[#FAF3DF] border border-[#EAEAEA] hover:border-[#E5BD58] transition text-left space-y-2 group"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="w-8 h-8 rounded-xl bg-white border border-[#EAEAEA] group-hover:border-[#E5BD58] flex items-center justify-center font-mono font-bold text-xs text-[#C49A3A]">
+                    {s.nomor}
+                  </div>
+                  <span className="font-quran text-base text-[#C49A3A]">
+                    {s.arabic}
+                  </span>
+                </div>
+
+                <div>
+                  <h4 className="text-xs font-bold text-[#222222] group-hover:text-[#C49A3A] transition truncate">
+                    {s.name}
+                  </h4>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="text-[10px] text-[#737373]">{s.ayat} ayat</span>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-white text-[#C49A3A] font-semibold border border-[#EAEAEA]">
+                      {s.type}
+                    </span>
                   </div>
                 </div>
               </button>
             ))}
           </div>
-        </section>
-      )}
 
-      {/* G. Kalamullah Reflection Card */}
-      <section className="bg-white border border-[#EAEAEA] rounded-3xl p-5 sm:p-6 text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
-        <div className="flex items-start gap-4">
-          <div className="w-10 h-10 rounded-2xl bg-[#FAF3DF] border border-[#E5BD58]/50 flex items-center justify-center text-[#C49A3A] shrink-0">
-            <Sparkles className="w-5 h-5" />
-          </div>
-          <div>
-            <h2 className="text-xs font-bold text-[#C49A3A] uppercase tracking-wide">
-              Kalamullah • Pengingat Hati
-            </h2>
-            <p className="text-xs sm:text-sm text-[#222222] mt-1 italic leading-relaxed">
-              "Ini adalah sebuah kitab yang Kami turunkan kepadamu penuh dengan berkah supaya mereka memperhatikan ayat-ayatnya dan supaya mendapat pelajaran orang-orang yang mempunyai fikiran."
-            </p>
-            <span className="text-[11px] text-[#737373] mt-1 block font-medium">QS. Sad: 29</span>
+          <div className="flex items-center justify-between text-xs text-[#737373] bg-[#FAF3DF]/60 p-2.5 rounded-xl border border-[#E5BD58]/30">
+            <span>Sering diamalkan: Al-Kahf, Yasin, Al-Mulk, Ayat Kursi</span>
+            <button
+              onClick={() => setIsFavoritesOpen(true)}
+              className="font-bold text-[#C49A3A] hover:underline"
+            >
+              Buka Fadhilah &rarr;
+            </button>
           </div>
         </div>
-        <button
-          onClick={() => onNavigate('quran', 38)}
-          className="shrink-0 px-4 py-2 rounded-xl bg-[#F8F8F8] hover:bg-[#FAF3DF] text-xs font-bold text-[#222222] hover:text-[#C49A3A] border border-[#EAEAEA] hover:border-[#E5BD58] transition shadow-2xs"
-        >
-          Buka Surat Sad
-        </button>
       </section>
 
-      {/* Modals for Quick Access */}
+      {/* =========================================================================
+          MODALS & OVERLAYS
+      ========================================================================= */}
+      <LocationModal
+        isOpen={isInternalLocOpen}
+        onClose={() => setIsInternalLocOpen(false)}
+        onLocationSelected={(loc) => {
+          setActiveLoc(loc);
+          setIsInternalLocOpen(false);
+        }}
+      />
+
+      <TasbihModal
+        isOpen={isTasbihOpen}
+        onClose={() => setIsTasbihOpen(false)}
+      />
+
       <SurahFavoritesModal
         isOpen={isFavoritesOpen}
         onClose={() => setIsFavoritesOpen(false)}
-        onSelectSurah={(surah, ayah) => onNavigate('quran', surah, ayah)}
+        onSelectSurah={(nomor, ayah) => onNavigate('quran', nomor, ayah)}
       />
 
       <DuaDhikrModal
@@ -672,14 +664,8 @@ export const HomePage: React.FC<Props> = ({ onNavigate, onOpenAudioSurah, onOpen
       />
 
       <AsmaulHusnaModal
-        isOpen={isAsmaulHusnaOpen}
-        onClose={() => setIsAsmaulHusnaOpen(false)}
-      />
-
-      <LocationModal
-        isOpen={isLocationModalOpen}
-        onClose={() => setIsLocationModalOpen(false)}
-        onLocationSelected={handleLocationUpdated}
+        isOpen={isAsmaulOpen}
+        onClose={() => setIsAsmaulOpen(false)}
       />
     </div>
   );

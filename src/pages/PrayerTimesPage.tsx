@@ -138,6 +138,29 @@ export const PrayerTimesPage: React.FC<Props> = ({ onOpenQibla, onOpenDua }) => 
     return () => clearInterval(interval);
   }, [prayerTimes]);
 
+  // Listen for global location changes
+  useEffect(() => {
+    const handleLocChanged = (e: any) => {
+      const loc = e.detail;
+      if (loc) {
+        setCurrentLocation({
+          name: loc.regencyName,
+          type: loc.regencyName.includes('Kota') ? 'Kota' : 'Kabupaten',
+          province: loc.provinceName,
+          district: loc.districtName,
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          timezone: loc.timezone,
+          timezoneIana: loc.timezoneIana
+        });
+      }
+    };
+    window.addEventListener('mydom_location_changed' as any, handleLocChanged);
+    return () => {
+      window.removeEventListener('mydom_location_changed' as any, handleLocChanged);
+    };
+  }, []);
+
   const handleSelectLocation = (loc: RegencyCity & { province: string; district?: string }) => {
     setCurrentLocation(loc);
     saveLocation(loc);
@@ -748,7 +771,18 @@ export const PrayerTimesPage: React.FC<Props> = ({ onOpenQibla, onOpenDua }) => 
       <LocationModal
         isOpen={showLocationModal}
         onClose={() => setShowLocationModal(false)}
-        onLocationSelected={handleSelectLocation}
+        onLocationSelected={(loc) => {
+          handleSelectLocation({
+            name: loc.regencyName,
+            type: loc.regencyName.includes('Kota') ? 'Kota' : 'Kabupaten',
+            province: loc.provinceName,
+            district: loc.districtName,
+            latitude: loc.latitude,
+            longitude: loc.longitude,
+            timezone: loc.timezone,
+            timezoneIana: loc.timezoneIana
+          });
+        }}
       />
 
       {/* Calculation Method Modal */}

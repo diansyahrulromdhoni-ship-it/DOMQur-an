@@ -56,6 +56,29 @@ export const QiblaPage: React.FC<Props> = ({ onOpenPrayerTimes }) => {
     return qiblaService.calculate(currentLocation.latitude, currentLocation.longitude);
   }, [currentLocation.latitude, currentLocation.longitude]);
 
+  // Listen for global location changes
+  useEffect(() => {
+    const handleLocChanged = (e: any) => {
+      const loc = e.detail;
+      if (loc) {
+        setCurrentLocation({
+          name: loc.regencyName,
+          type: loc.regencyName.includes('Kota') ? 'Kota' : 'Kabupaten',
+          province: loc.provinceName,
+          district: loc.districtName,
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          timezone: loc.timezone,
+          timezoneIana: loc.timezoneIana
+        });
+      }
+    };
+    window.addEventListener('mydom_location_changed' as any, handleLocChanged);
+    return () => {
+      window.removeEventListener('mydom_location_changed' as any, handleLocChanged);
+    };
+  }, []);
+
   // Save selected location
   const handleSelectLocation = (loc: RegencyCity & { province: string; district?: string }, accuracy?: number) => {
     setCurrentLocation(loc);
@@ -558,8 +581,19 @@ export const QiblaPage: React.FC<Props> = ({ onOpenPrayerTimes }) => {
       {/* Location Modal */}
       <LocationModal
         isOpen={isLocationModalOpen}
+        onLocationSelected={(loc) => {
+          handleSelectLocation({
+            name: loc.regencyName,
+            type: loc.regencyName.includes('Kota') ? 'Kota' : 'Kabupaten',
+            province: loc.provinceName,
+            district: loc.districtName,
+            latitude: loc.latitude,
+            longitude: loc.longitude,
+            timezone: loc.timezone,
+            timezoneIana: loc.timezoneIana
+          });
+        }}
         onClose={() => setIsLocationModalOpen(false)}
-        onLocationSelected={(loc) => handleSelectLocation(loc)}
       />
 
       {/* Calibration Guidance Modal */}
