@@ -37,11 +37,11 @@ export const AudioPlayerBar: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-16 landscape:bottom-12 md:bottom-0 left-0 right-0 z-40 bg-[#121212]/95 border-t border-[#262626] backdrop-blur-md px-3 sm:px-6 py-2 landscape:py-1.5 md:py-2.5 shadow-2xl transition-all">
+    <div className="fixed bottom-16 landscape:bottom-12 md:bottom-0 left-0 right-0 z-40 bg-white/95 border-t border-[#EAEAEA] backdrop-blur-md px-3 sm:px-6 py-2.5 shadow-lg transition-all text-[#222222]">
       <div className="max-w-4xl mx-auto flex flex-col gap-1.5">
         {/* Progress Bar (interactive slider) */}
-        <div className="flex items-center gap-2 text-[11px] text-[#B8B8B8]">
-          <span className="w-9 text-right font-mono">{formatTime(audioState.currentTime)}</span>
+        <div className="flex items-center gap-2 text-[11px] text-[#737373]">
+          <span className="w-10 text-right font-mono text-[#222222] font-semibold">{formatTime(audioState.currentTime)}</span>
           <div className="relative flex-1 flex items-center group">
             <input
               type="range"
@@ -52,84 +52,63 @@ export const AudioPlayerBar: React.FC = () => {
               onChange={handleSeek}
               disabled={!audioState.duration}
               aria-label="Seek audio"
-              className="w-full h-1.5 bg-[#262626] rounded-lg appearance-none cursor-pointer accent-[#F6C646] hover:h-2 transition-all"
+              className="w-full h-1.5 bg-[#EAEAEA] rounded-lg appearance-none cursor-pointer accent-[#C49A3A] hover:h-2 transition-all"
               style={{
-                background: `linear-gradient(to right, #F6C646 ${progressPercent}%, #262626 ${progressPercent}%)`
+                background: `linear-gradient(to right, #C49A3A ${progressPercent}%, #EAEAEA ${progressPercent}%)`
               }}
             />
           </div>
-          <span className="w-9 font-mono">{formatTime(audioState.duration)}</span>
+          <span className="w-10 font-mono text-[#737373]">{formatTime(audioState.duration)}</span>
         </div>
 
-        {/* Controls and Track Info */}
+        {/* Info & Main Controls */}
         <div className="flex items-center justify-between gap-3">
-          {/* Track Info */}
+          {/* Track metadata */}
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-black border border-[#F6C646]/30 flex items-center justify-center shrink-0">
-              <span className="text-xs font-bold text-[#F6C646] font-mono">
-                {audioState.surahNomor ? String(audioState.surahNomor).padStart(2, '0') : 'Q'}
-              </span>
+            <div className="w-9 h-9 rounded-xl bg-[#FAF3DF] border border-[#E5BD58] flex items-center justify-center font-mono font-bold text-xs text-[#C49A3A] shrink-0 shadow-2xs">
+              {audioState.surahNomor ? String(audioState.surahNomor).padStart(2, '0') : '♪'}
             </div>
             <div className="min-w-0">
-              <h4 className="text-xs sm:text-sm font-semibold text-white truncate">
-                {audioState.surahName || 'Surat'}
-                {audioState.ayahNomor !== null && (
-                  <span className="text-[#F6C646] ml-1.5 font-normal">
-                    : Ayat {audioState.ayahNomor}
+              <h2 className="text-xs sm:text-sm font-bold text-[#222222] truncate">
+                {audioState.surahName ? `Surat ${audioState.surahName}` : 'Murottal Al-Qur\'an'}
+              </h2>
+              <p className="text-[10px] sm:text-xs text-[#737373] truncate">
+                {audioState.error ? (
+                  <span className="text-rose-600 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3 inline" /> {audioState.error}
                   </span>
+                ) : (
+                  currentQari
                 )}
-                {audioState.ayahNomor === null && (
-                  <span className="text-[#B8B8B8] ml-1.5 text-[11px] font-normal">
-                    (Murottal Lengkap)
-                  </span>
-                )}
-              </h4>
-              <p className="text-[11px] text-[#B8B8B8] truncate">{currentQari}</p>
+              </p>
             </div>
           </div>
 
-          {/* Action buttons */}
-          <div className="flex items-center gap-2 shrink-0">
-            {audioState.error ? (
-              <div className="flex items-center gap-1.5 text-xs text-rose-400 bg-rose-950/40 px-2 py-1 rounded-md border border-rose-800/40">
-                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                <span className="hidden sm:inline">Koneksi bermasalah</span>
-              </div>
-            ) : null}
+          {/* Player action controls */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Play / Pause Toggle Button */}
+            <button
+              onClick={() => audioService.togglePlayPause()}
+              disabled={audioState.isLoading}
+              aria-label={audioState.isPlaying ? 'Jeda murottal' : 'Putar murottal'}
+              className="w-9 h-9 rounded-xl bg-[#FAF3DF] hover:bg-[#C49A3A] text-[#C49A3A] hover:text-white border border-[#E5BD58] flex items-center justify-center transition shadow-2xs disabled:opacity-50"
+            >
+              {audioState.isLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin text-[#C49A3A]" />
+              ) : audioState.isPlaying ? (
+                <Pause className="w-4 h-4 fill-current" />
+              ) : (
+                <Play className="w-4 h-4 fill-current ml-0.5" />
+              )}
+            </button>
 
-            {audioState.isLoading ? (
-              <button
-                disabled
-                className="w-9 h-9 rounded-full bg-[#1e1e1e] border border-[#262626] flex items-center justify-center text-[#F6C646]"
-                aria-label="Memuat audio"
-              >
-                <Loader2 className="w-4 h-4 animate-spin" />
-              </button>
-            ) : audioState.isPlaying ? (
-              <button
-                onClick={() => audioService.pause()}
-                className="w-9 h-9 rounded-full bg-[#F6C646] hover:bg-[#FFD455] text-black flex items-center justify-center transition shadow-md"
-                aria-label="Jeda pemutaran"
-              >
-                <Pause className="w-4 h-4 fill-black" />
-              </button>
-            ) : (
-              <button
-                onClick={() => audioService.resume()}
-                className="w-9 h-9 rounded-full bg-[#F6C646] hover:bg-[#FFD455] text-black flex items-center justify-center transition shadow-md"
-                aria-label="Lanjutkan pemutaran"
-              >
-                <Play className="w-4 h-4 fill-black translate-x-0.5" />
-              </button>
-            )}
-
+            {/* Stop Button */}
             <button
               onClick={() => audioService.stop()}
-              className="p-2 text-[#B8B8B8] hover:text-white rounded-lg hover:bg-[#1E1E1E] transition"
-              title="Tutup pemutar audio"
-              aria-label="Tutup pemutar audio"
+              aria-label="Hentikan audio"
+              className="w-9 h-9 rounded-xl bg-[#F8F8F8] hover:bg-rose-50 text-[#737373] hover:text-rose-600 border border-[#EAEAEA] hover:border-rose-300 flex items-center justify-center transition"
             >
-              <Square className="w-4 h-4" />
+              <Square className="w-4 h-4 fill-current" />
             </button>
           </div>
         </div>

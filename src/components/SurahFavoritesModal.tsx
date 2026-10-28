@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, BookOpen, Star, Sparkles } from 'lucide-react';
+import { X, Star, ArrowRight, Sparkles } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -24,29 +24,29 @@ export const SurahFavoritesModal: React.FC<Props> = ({ isOpen, onClose, onSelect
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-xl bg-[#141414] border border-[#262626] rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col max-h-[85vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="w-full max-w-xl bg-white border border-[#EAEAEA] rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col max-h-[85vh] text-[#222222]">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-[#262626]">
-          <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-[#F6C646]/20 text-[#F6C646]">
-              <Star className="w-4 h-4 fill-[#F6C646]" />
-            </span>
+        <div className="flex items-center justify-between pb-4 border-b border-[#EAEAEA]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-[#FAF3DF] border border-[#E5BD58] flex items-center justify-center text-[#C49A3A] shadow-xs">
+              <Star className="w-5 h-5 fill-[#C49A3A]" />
+            </div>
             <div>
-              <h3 className="text-sm font-bold text-white">Surat-Surat Pilihan & Fadhilah</h3>
-              <p className="text-[11px] text-[#888]">Lompat cepat ke bacaan yang sering diamalkan</p>
+              <h3 className="text-sm sm:text-base font-bold text-[#222222]">Surat-Surat Pilihan & Fadhilah</h3>
+              <p className="text-xs text-[#737373]">Lompat cepat ke bacaan yang sering diamalkan</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-[#888] hover:text-white rounded-lg hover:bg-[#222] transition"
+            className="w-9 h-9 rounded-xl bg-[#F8F8F8] border border-[#EAEAEA] text-[#737373] hover:text-[#222222] hover:bg-[#EAEAEA] flex items-center justify-center transition"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* List of popular surahs */}
-        <div className="overflow-y-auto py-3 space-y-2 flex-1 pr-1">
+        <div className="overflow-y-auto py-3 space-y-2.5 flex-1 pr-1">
           {POPULAR_SURAHS.map((item) => (
             <button
               key={`${item.nomor}-${item.ayahTarget || ''}`}
@@ -54,31 +54,30 @@ export const SurahFavoritesModal: React.FC<Props> = ({ isOpen, onClose, onSelect
                 onSelectSurah(item.nomor, item.ayahTarget);
                 onClose();
               }}
-              className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-black border border-[#262626] hover:border-[#F6C646]/50 hover:bg-[#1A1A1A] transition text-left group"
+              className="w-full flex items-center justify-between p-4 rounded-2xl bg-white border border-[#EAEAEA] hover:border-[#E5BD58] hover:bg-[#FAF3DF]/40 transition text-left group shadow-xs"
             >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#151515] border border-[#333] group-hover:border-[#F6C646]/40 flex items-center justify-center text-xs font-bold text-[#F6C646] font-mono shrink-0">
-                  {String(item.nomor).padStart(2, '0')}
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-[#FAF3DF] border border-[#E5BD58] group-hover:bg-[#C49A3A] group-hover:text-white transition flex items-center justify-center text-xs font-bold text-[#C49A3A] font-mono shrink-0 shadow-2xs">
+                  {item.ayahTarget ? '★' : String(item.nomor).padStart(2, '0')}
                 </div>
-                <div>
+                <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-white group-hover:text-[#F6C646] transition-colors">
+                    <h4 className="text-sm font-bold text-[#222222] group-hover:text-[#C49A3A] transition-colors truncate">
                       {item.name}
-                    </span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#1C1C1C] text-[#B8B8B8] border border-[#262626]">
-                      {item.ayat} Ayat
-                    </span>
+                    </h4>
+                    <span className="text-[11px] text-[#737373] shrink-0">({item.ayat} ayat)</span>
                   </div>
-                  <p className="text-[11px] text-[#888] line-clamp-1 mt-0.5">
-                    {item.fadhilah}
-                  </p>
+                  <p className="text-xs text-[#737373] line-clamp-1 mt-0.5">{item.fadhilah}</p>
                 </div>
               </div>
 
-              <div className="text-right pl-2 shrink-0">
-                <span className="font-quran text-lg text-[#FFD455]">
+              <div className="flex items-center gap-3 shrink-0 ml-2">
+                <span className="font-quran text-lg text-[#C49A3A] hidden sm:inline">
                   {item.arabic}
                 </span>
+                <div className="w-8 h-8 rounded-lg bg-[#F8F8F8] border border-[#EAEAEA] group-hover:border-[#E5BD58] group-hover:bg-[#FAF3DF] text-[#737373] group-hover:text-[#C49A3A] flex items-center justify-center transition">
+                  <ArrowRight className="w-4 h-4" />
+                </div>
               </div>
             </button>
           ))}

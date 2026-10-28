@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Volume2, VolumeX, Pause, Play, Square, X, Bell, BookOpen, Check, Heart } from 'lucide-react';
+import { Volume2, VolumeX, Pause, Play, Square, X, Bell, BookOpen, Check, Copy } from 'lucide-react';
 import { audioManager, ActiveAudioAlert } from '../services/audioManager';
 
 interface Props {
@@ -34,149 +34,131 @@ export const AdzanAlertModal: React.FC<Props> = ({ alert, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg bg-[#141414] border-2 border-[#F6C646]/70 rounded-3xl p-5 sm:p-7 shadow-2xl shadow-[#F6C646]/20 flex flex-col max-h-[90vh] overflow-y-auto">
-        {/* Glow backdrop decorative */}
-        <div className="absolute top-0 right-1/4 w-40 h-40 bg-[#F6C646]/10 rounded-full blur-3xl pointer-events-none" />
-
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative w-full max-w-lg bg-white border border-[#E5BD58] rounded-3xl p-5 sm:p-7 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto text-[#222222]">
         {/* Top Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-[#262626]">
-          <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-[#F6C646]/20 text-[#F6C646]">
+        <div className="flex items-center justify-between pb-3.5 border-b border-[#EAEAEA]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-[#FAF3DF] border border-[#E5BD58] flex items-center justify-center text-[#C49A3A] shadow-xs">
               <Bell className="w-4 h-4 animate-bounce" />
-            </span>
-            <span className="text-xs font-bold text-[#F6C646] tracking-wider uppercase">
-              {alert.isTest ? 'Uji Coba Sistem Audio' : 'Panggilan Waktu Ibadah'}
-            </span>
+            </div>
+            <div>
+              <span className="text-xs font-bold text-[#C49A3A] tracking-wider uppercase block">
+                {alert.isTest ? 'Uji Coba Suara Audio' : 'Panggilan Waktu Ibadah'}
+              </span>
+              <span className="text-[11px] text-[#737373]">My Dom Qur'an Pengingat Salat</span>
+            </div>
           </div>
 
           <button
             onClick={handleStop}
-            className="p-1.5 text-[#888] hover:text-white rounded-lg hover:bg-[#262626] transition"
+            className="w-9 h-9 rounded-xl bg-[#F8F8F8] border border-[#EAEAEA] text-[#737373] hover:text-[#222222] hover:bg-[#EAEAEA] flex items-center justify-center transition"
             aria-label="Tutup pemberitahuan"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Announcement Banner */}
-        <div className="text-center py-4 space-y-2">
-          <div className="inline-block px-3 py-1 rounded-full bg-black/60 border border-[#F6C646]/40 text-xs font-semibold text-[#FFD455]">
-            {alert.locationName} • Pukul {alert.timeStr}
+        {/* Center Alert Details */}
+        <div className="py-6 text-center space-y-3">
+          <div className="w-20 h-20 mx-auto rounded-3xl bg-[#FAF3DF] border-2 border-[#E5BD58] flex items-center justify-center text-[#C49A3A] shadow-md animate-pulse">
+            <Volume2 className="w-10 h-10" />
           </div>
 
-          <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-            {alert.title}
-          </h2>
-
-          <p className="font-quran text-2xl text-[#FFD455] py-1 leading-relaxed">
-            حَيَّ عَلَى ٱلصَّلَاةِ • حَيَّ عَلَى ٱلْفَلَاحِ
-          </p>
-          <p className="text-xs text-[#B8B8B8] italic">
-            "{alert.subtitle}"
-          </p>
+          <div className="space-y-1">
+            <h2 className="text-2xl font-black text-[#222222] tracking-tight">{alert.title}</h2>
+            <p className="text-sm font-semibold text-[#C49A3A]">{alert.subtitle}</p>
+            <p className="text-xs text-[#737373] max-w-xs mx-auto leading-relaxed">{alert.locationName} • {alert.timeStr}</p>
+          </div>
         </div>
 
-        {/* Audio Player Controls */}
-        <div className="bg-black/70 border border-[#262626] rounded-2xl p-4 space-y-3">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-[#B8B8B8] font-medium">Status Pemutaran Audio:</span>
-            <span className={`font-semibold flex items-center gap-1.5 ${alert.isPlaying ? 'text-[#F6C646]' : 'text-[#888]'}`}>
-              {alert.isPlaying ? (
-                <>
-                  <span className="w-2 h-2 rounded-full bg-[#F6C646] animate-pulse" />
-                  Sedang Mengumandangkan Suara
-                </>
-              ) : (
-                'Dijeda / Berhenti'
-              )}
-            </span>
+        {/* Audio Controls Bar */}
+        <div className="bg-[#F8F8F8] border border-[#EAEAEA] rounded-2xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-white border border-[#EAEAEA] flex items-center justify-center text-[#737373]">
+                {settings.volume === 0 ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5 text-[#C49A3A]" />}
+              </div>
+              <span className="text-xs font-semibold text-[#222222]">Volume Audio:</span>
+            </div>
+            <span className="text-xs font-mono font-bold text-[#C49A3A]">{Math.round(settings.volume * 100)}%</span>
           </div>
 
-          {alert.error && (
-            <div className="p-2.5 rounded-xl bg-red-950/40 border border-red-800/60 text-xs text-red-300 flex items-center gap-2">
-              <VolumeX className="w-4 h-4 shrink-0 text-red-400" />
-              <span>{alert.error}</span>
-            </div>
-          )}
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={settings.volume}
+            onChange={handleVolumeChange}
+            aria-label="Atur volume audio"
+            className="w-full h-2 bg-[#EAEAEA] rounded-lg appearance-none cursor-pointer accent-[#C49A3A]"
+          />
 
-          {/* Action buttons */}
-          <div className="flex items-center gap-2 pt-1">
+          <div className="flex items-center justify-center gap-3 pt-2">
             <button
               onClick={handleTogglePlay}
-              className="flex-1 py-2.5 px-4 rounded-xl bg-[#F6C646] hover:bg-[#FFD455] text-black font-extrabold text-xs flex items-center justify-center gap-2 transition shadow-md shadow-[#F6C646]/20"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#FAF3DF] hover:bg-[#C49A3A] text-[#C49A3A] hover:text-white border border-[#E5BD58] font-bold text-xs transition shadow-xs"
             >
-              {alert.isPlaying ? (
-                <>
-                  <Pause className="w-4 h-4 fill-current" />
-                  <span>Jeda Audio</span>
-                </>
-              ) : (
-                <>
-                  <Play className="w-4 h-4 fill-current" />
-                  <span>Lanjutkan Audio</span>
-                </>
-              )}
+              <div className="w-6 h-6 rounded-lg bg-white/70 flex items-center justify-center">
+                {alert.isPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current ml-0.5" />}
+              </div>
+              <span>{alert.isPlaying ? 'Jeda Suara' : 'Lanjutkan Putar'}</span>
             </button>
 
             <button
               onClick={handleStop}
-              className="py-2.5 px-4 rounded-xl bg-[#262626] hover:bg-[#333] text-white font-semibold text-xs flex items-center justify-center gap-2 transition"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 font-bold text-xs transition shadow-xs"
             >
-              <Square className="w-3.5 h-3.5 fill-current" />
-              <span>Hentikan</span>
+              <div className="w-6 h-6 rounded-lg bg-rose-100 flex items-center justify-center">
+                <Square className="w-3 h-3 fill-current" />
+              </div>
+              <span>Hentikan Suara</span>
             </button>
-          </div>
-
-          {/* Volume Slider */}
-          <div className="flex items-center gap-3 pt-2">
-            <Volume2 className="w-4 h-4 text-[#888]" />
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.05}
-              defaultValue={settings.volume}
-              onChange={handleVolumeChange}
-              className="w-full accent-[#F6C646] cursor-pointer"
-            />
-            <span className="text-[11px] font-mono text-[#AAA] w-8 text-right">
-              {Math.round(settings.volume * 100)}%
-            </span>
           </div>
         </div>
 
-        {/* Collapsible Doa Setelah Adzan */}
-        <div className="mt-4 pt-3 border-t border-[#262626]">
+        {/* Toggle Dua Setelah Adzan Accordion */}
+        <div className="mt-4 pt-4 border-t border-[#EAEAEA] space-y-3">
           <button
             onClick={() => setShowDua(!showDua)}
-            className="w-full flex items-center justify-between text-xs font-bold text-[#FFD455] hover:text-[#F6C646] transition py-1"
+            className="w-full flex items-center justify-between p-3 rounded-xl bg-[#FAF3DF]/60 border border-[#E5BD58]/40 hover:bg-[#FAF3DF] text-[#C49A3A] transition text-xs font-bold"
           >
-            <span className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4" />
-              <span>{showDua ? 'Sembunyikan Doa Setelah Adzan' : 'Tampilkan Doa Setelah Adzan'}</span>
-            </span>
-            <span className="text-[10px] text-[#888]">{showDua ? '▲' : '▼'}</span>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-white border border-[#E5BD58] flex items-center justify-center text-[#C49A3A]">
+                <BookOpen className="w-3.5 h-3.5" />
+              </div>
+              <span>{showDua ? 'Sembunyikan Doa Setelah Adzan' : 'Tampilkan Doa Setelah Adzan & Fadhilah'}</span>
+            </div>
+            <span>{showDua ? '▲' : '▼'}</span>
           </button>
 
           {showDua && (
-            <div className="mt-3 p-4 rounded-2xl bg-black/60 border border-[#262626] space-y-3 animate-in fade-in duration-150">
-              <p className="font-quran text-right text-base sm:text-lg text-white leading-loose select-text" dir="rtl">
+            <div className="p-4 rounded-2xl bg-[#F8F8F8] border border-[#EAEAEA] space-y-3 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[#222222]">Doa Setelah Adzan Sesuai Sunnah</span>
+                <button
+                  onClick={handleCopyDua}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-[#EAEAEA] hover:border-[#E5BD58] text-[11px] text-[#737373] hover:text-[#C49A3A] transition"
+                >
+                  {copied ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                  <span>{copied ? 'Tersalin' : 'Salin Doa'}</span>
+                </button>
+              </div>
+
+              <p className="font-quran text-right text-base sm:text-lg leading-loose text-[#222222]" dir="rtl">
                 اللَّهُمَّ رَبَّ هَذِهِ الدَّعْوَةِ التَّامَّةِ، وَالصَّلَاةِ الْقَائِمَةِ، آتِ مُحَمَّدًا الْوَسِيلَةَ وَالْفَضِيلَةَ، وَابْعَثْهُ مَقَامًا مَحْمُودًا الَّذِي وَعَدْتَهُ
               </p>
-              <p className="text-xs text-[#FFD455] italic">
-                Allahumma rabba hadzihid-da'watit-tammah, wash-shalaatil-qa'imah, aati Muhammadanil-wasilata wal-fadhilah, wab'atshu maqamam mahmudalladzi wa'adtah.
-              </p>
-              <p className="text-xs text-[#AAA]">
-                "Ya Allah, Tuhan yang memiliki seruan yang sempurna ini, dan sholat yang senantiasa didirikan, berikanlah kepada Nabi Muhammad wasilah dan keutamaan, serta tempatkanlah ia pada kedudukan terpuji yang telah Engkau janjikan." (HR. Bukhari no. 614)
-              </p>
-              <button
-                onClick={handleCopyDua}
-                className="w-full py-1.5 rounded-lg bg-[#222] hover:bg-[#333] text-xs font-medium text-[#CCC] hover:text-white flex items-center justify-center gap-1.5 transition"
-              >
-                {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : null}
-                <span>{copied ? 'Doa Berhasil Disalin' : 'Salin Teks Doa'}</span>
-              </button>
+
+              <div className="space-y-1 text-xs">
+                <p className="text-[#C49A3A] font-medium italic">
+                  Allahumma rabba hadzihid-da'watit-tammah, wash-shalaatil-qa'imah, aati Muhammadanil-wasilata wal-fadhilah, wab'atshu maqamam mahmudalladzi wa'adtah.
+                </p>
+                <p className="text-[#555555] leading-relaxed">
+                  "Ya Allah, Tuhan Pemilik seruan yang sempurna ini dan sholat yang senantiasa didirikan, berikanlah kepada Nabi Muhammad wasilah dan keutamaan, serta tempatkanlah ia pada kedudukan terpuji yang telah Engkau janjikan."
+                </p>
+                <span className="text-[11px] text-[#737373] block pt-1">(HR. Bukhari no. 614)</span>
+              </div>
             </div>
           )}
         </div>

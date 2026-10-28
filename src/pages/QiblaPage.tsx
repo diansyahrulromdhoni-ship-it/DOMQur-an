@@ -2,27 +2,27 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Compass,
   MapPin,
-  Navigation,
   RotateCw,
   Sparkles,
   CheckCircle2,
   AlertCircle,
   HelpCircle,
   LocateFixed,
-  Sliders,
-  ShieldAlert,
-  Info,
-  RefreshCw,
-  Check,
-  Smartphone
+  Building2,
+  Smartphone,
+  ChevronRight
 } from 'lucide-react';
 import {
-  prayerTimeService,
-  PRESET_LOCATIONS,
-  LocationInfo,
   KAABA_COORDS
 } from '../services/prayerTimeService';
 import { qiblaService } from '../services/qiblaService';
+import {
+  getSavedLocation,
+  saveLocation,
+  INDONESIA_REGIONS,
+  RegencyCity
+} from '../services/indonesiaRegions';
+import { LocationModal } from '../components/LocationModal';
 
 interface Props {
   onOpenPrayerTimes?: () => void;
@@ -30,19 +30,14 @@ interface Props {
 
 export const QiblaPage: React.FC<Props> = ({ onOpenPrayerTimes }) => {
   // Location state
-  const [currentLocation, setCurrentLocation] = useState<LocationInfo>(() => {
-    try {
-      const saved = localStorage.getItem('aadom_saved_location');
-      if (saved) return JSON.parse(saved);
-    } catch {
-      // Fallback
-    }
-    return PRESET_LOCATIONS[0]; // Jakarta default
-  });
+  const [currentLocation, setCurrentLocation] = useState<RegencyCity & { province: string; district?: string }>(
+    () => getSavedLocation()
+  );
 
   const [geoLoading, setGeoLoading] = useState<boolean>(false);
   const [geoError, setGeoError] = useState<string | null>(null);
   const [gpsAccuracyMeters, setGpsAccuracyMeters] = useState<number | null>(null);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState<boolean>(false);
 
   // Compass sensor state
   const [deviceHeading, setDeviceHeading] = useState<number>(0);
@@ -62,14 +57,10 @@ export const QiblaPage: React.FC<Props> = ({ onOpenPrayerTimes }) => {
   }, [currentLocation.latitude, currentLocation.longitude]);
 
   // Save selected location
-  const handleSelectLocation = (loc: LocationInfo, accuracy?: number) => {
+  const handleSelectLocation = (loc: RegencyCity & { province: string; district?: string }, accuracy?: number) => {
     setCurrentLocation(loc);
+    saveLocation(loc);
     if (accuracy !== undefined) setGpsAccuracyMeters(accuracy);
-    try {
-      localStorage.setItem('aadom_saved_location', JSON.stringify(loc));
-    } catch (e) {
-      console.warn(e);
-    }
   };
 
   // Auto-detect GPS location
@@ -89,23 +80,29 @@ export const QiblaPage: React.FC<Props> = ({ onOpenPrayerTimes }) => {
         const accuracy = Math.round(pos.coords.accuracy || 0);
         const tz = Math.round(-new Date().getTimezoneOffset() / 60);
 
-        let nearestCity = 'Lokasi GPS Anda';
+        let bestCity: RegencyCity | null = null;
+        let bestProv = INDONESIA_REGIONS[0];
         let minDist = Infinity;
-        for (const city of PRESET_LOCATIONS) {
-          const d = Math.hypot(city.latitude - lat, city.longitude - lng);
-          if (d < minDist && d < 0.4) {
-            minDist = d;
-            nearestCity = city.name;
+
+        for (const prov of INDONESIA_REGIONS) {
+          for (const c of prov.cities) {
+            const d = Math.hypot(c.latitude - lat, c.longitude - lng);
+            if (d < minDist) {
+              minDist = d;
+              bestCity = c;
+              bestProv = prov;
+            }
           }
         }
 
-        const detected: LocationInfo = {
-          name: nearestCity,
-          province: 'GPS Otomatis',
-          country: 'Indonesia',
+        const detected: RegencyCity & { province: string; district?: string } = {
+          name: bestCity ? bestCity.name : 'Lokasi GPS Anda',
+          type: bestCity ? bestCity.type : 'Kota',
+          province: bestProv.name,
           latitude: Math.round(lat * 10000) / 10000,
           longitude: Math.round(lng * 10000) / 10000,
-          timezone: tz
+          timezone: tz,
+          timezoneIana: tz === 9 ? 'Asia/Jayapura' : tz === 8 ? 'Asia/Makassar' : 'Asia/Jakarta'
         };
 
         handleSelectLocation(detected, accuracy);
@@ -114,13 +111,13 @@ export const QiblaPage: React.FC<Props> = ({ onOpenPrayerTimes }) => {
       (err) => {
         setGeoLoading(false);
         if (err.code === err.PERMISSION_DENIED) {
-          setGeoError('Izin akses lokasi ditolak oleh browser/perangkat. Silakan pilih kota manual di bawah.');
+          setGeoError('Izin akses lokasi ditolak oleh browser/perangkat. Silakan pilih wilayah secara manual.');
         } else if (err.code === err.POSITION_UNAVAILABLE) {
           setGeoError('Sinyal GPS tidak tersedia. Pastikan fitur lokasi perangkat Anda telah aktif.');
         } else if (err.code === err.TIMEOUT) {
           setGeoError('Permintaan lokasi melebihi batas waktu (timeout). Silakan coba lagi.');
         } else {
-          setGeoError('Gagal mendeteksi koordinat GPS. Gunakan daftar kota manual.');
+          setGeoError('Gagal mendeteksi koordinat GPS. Gunakan pilihan wilayah manual.');
         }
       },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 }
@@ -229,56 +226,67 @@ export const QiblaPage: React.FC<Props> = ({ onOpenPrayerTimes }) => {
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-200">
       {/* Header Banner */}
-      <div className="bg-[#151515] p-5 sm:p-6 rounded-2xl border border-[#262626] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-[#F6C646]/10 text-[#F6C646] border border-[#F6C646]/20">
-              <Compass className="w-5 h-5" />
-            </span>
-            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+      <div className="bg-white p-5 sm:p-6 rounded-3xl border border-[#EAEAEA] flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-2xl bg-[#FAF3DF] border border-[#E5BD58]/50 flex items-center justify-center text-[#C49A3A] shrink-0 shadow-2xs">
+            <Compass className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-black text-[#222222] tracking-tight">
               Arah Kiblat Akurat
             </h1>
+            <p className="text-xs text-[#737373] mt-0.5">
+              Geodesik lingkaran besar menuju Ka'bah di Mekkah ({KAABA_COORDS.latitude}° LU, {KAABA_COORDS.longitude}° BT)
+            </p>
           </div>
-          <p className="text-xs text-[#B8B8B8] mt-1.5">
-            Dihitung menggunakan rumus geodesik lingkaran besar (Great-Circle Forward Azimuth) menuju Ka'bah di Mekkah ({KAABA_COORDS.latitude}° LU, {KAABA_COORDS.longitude}° BT).
-          </p>
         </div>
 
-        {/* Location GPS Action Button */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Action Controls (Icons in rounded-square boxes) */}
+        <div className="flex items-center gap-2 shrink-0 flex-wrap">
+          <button
+            onClick={() => setIsLocationModalOpen(true)}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#FAF3DF] hover:bg-[#F5E8C4] border border-[#E5BD58]/60 text-[#C49A3A] text-xs font-bold transition shadow-2xs"
+          >
+            <div className="w-5 h-5 rounded-md bg-white border border-[#E5BD58]/40 flex items-center justify-center text-[#C49A3A]">
+              <Building2 className="w-3 h-3" />
+            </div>
+            <span>Pilih Wilayah</span>
+          </button>
+
           <button
             onClick={handleDetectGPS}
             disabled={geoLoading}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#F6C646] hover:bg-[#FFD455] text-black text-xs font-bold transition shadow-sm disabled:opacity-50"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#C49A3A] hover:bg-[#B3892B] text-white text-xs font-bold transition shadow-xs disabled:opacity-50"
             title="Perbarui koordinat via GPS"
           >
-            {geoLoading ? (
-              <RefreshCw className="w-4 h-4 animate-spin" />
-            ) : (
-              <LocateFixed className="w-4 h-4" />
-            )}
-            <span>{geoLoading ? 'Mendeteksi...' : 'Deteksi GPS'}</span>
+            <div className="w-5 h-5 rounded-md bg-white/20 flex items-center justify-center text-white">
+              {geoLoading ? (
+                <RotateCw className="w-3 h-3 animate-spin" />
+              ) : (
+                <LocateFixed className="w-3 h-3" />
+              )}
+            </div>
+            <span>{geoLoading ? 'GPS...' : 'Deteksi GPS'}</span>
           </button>
 
           <button
             onClick={() => setIsCalibrateModalOpen(true)}
-            className="p-2 text-[#B8B8B8] hover:text-white bg-black/60 hover:bg-[#222] border border-[#262626] rounded-xl transition text-xs font-semibold flex items-center gap-1.5"
+            className="w-9 h-9 rounded-xl bg-[#F8F8F8] hover:bg-[#FAF3DF] border border-[#EAEAEA] hover:border-[#E5BD58] text-[#737373] hover:text-[#C49A3A] flex items-center justify-center transition"
             title="Panduan Kalibrasi Kompas"
           >
-            <HelpCircle className="w-4 h-4 text-[#F6C646]" />
-            <span className="hidden sm:inline">Kalibrasi</span>
+            <HelpCircle className="w-4 h-4" />
           </button>
         </div>
       </div>
 
       {/* GPS Error Alert */}
       {geoError && (
-        <div className="p-3.5 rounded-xl bg-red-950/40 border border-red-800/60 flex items-start gap-3 text-xs text-red-200">
-          <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+        <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 flex items-start gap-3 text-xs text-red-700 shadow-2xs">
+          <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="font-semibold">{geoError}</p>
-            <p className="text-[11px] text-red-300/80 mt-0.5">
-              Gunakan pemilihan kota terdekat secara manual di bagian bawah agar perhitungan tetap akurat.
+            <p className="text-[11px] text-red-600/80 mt-0.5">
+              Gunakan tombol "Pilih Wilayah" untuk memilih kabupaten/kota Anda di Banten atau provinsi lainnya.
             </p>
           </div>
         </div>
@@ -286,19 +294,21 @@ export const QiblaPage: React.FC<Props> = ({ onOpenPrayerTimes }) => {
 
       {/* iOS Permission Prompt */}
       {iosPermissionNeeded && (
-        <div className="p-4 rounded-2xl bg-[#1e1a0b] border border-[#F6C646]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div className="p-4 rounded-3xl bg-[#FAF3DF] border border-[#E5BD58] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs">
           <div className="flex items-center gap-3">
-            <Smartphone className="w-5 h-5 text-[#F6C646] shrink-0" />
+            <div className="w-9 h-9 rounded-xl bg-white border border-[#E5BD58]/50 flex items-center justify-center text-[#C49A3A] shrink-0">
+              <Smartphone className="w-4 h-4" />
+            </div>
             <div>
-              <p className="font-bold text-white">Izin Sensor Orientasi iOS (iPhone/iPad)</p>
-              <p className="text-[#DDD] text-[11px] mt-0.5">
-                Safari iOS memerlukan izin pengguna untuk mengakses kompas dan sensor gerakan.
+              <p className="font-bold text-[#222222]">Izin Sensor Orientasi iOS (iPhone/iPad)</p>
+              <p className="text-[#737373] text-[11px] mt-0.5">
+                Safari iOS memerlukan izin pengguna untuk mengaktifkan kompas dan gyroscope secara real-time.
               </p>
             </div>
           </div>
           <button
             onClick={requestIosPermission}
-            className="px-4 py-2 bg-[#F6C646] text-black font-bold text-xs rounded-xl hover:bg-[#FFD455] transition shrink-0"
+            className="px-4 py-2 bg-[#C49A3A] text-white font-bold text-xs rounded-xl hover:bg-[#B3892B] transition shrink-0 shadow-xs"
           >
             Izinkan Sensor Kompas
           </button>
@@ -307,80 +317,71 @@ export const QiblaPage: React.FC<Props> = ({ onOpenPrayerTimes }) => {
 
       {/* Coordinates & Accuracy Details Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-        <div className="bg-[#151515] border border-[#262626] p-3.5 rounded-xl space-y-1">
-          <span className="text-[10px] text-[#888] uppercase tracking-wider block">Lokasi Aktif</span>
-          <p className="font-bold text-white truncate flex items-center gap-1">
-            <MapPin className="w-3.5 h-3.5 text-[#F6C646]" />
-            {currentLocation.name}
+        <div className="bg-white border border-[#EAEAEA] p-3.5 rounded-2xl space-y-1 shadow-2xs">
+          <span className="text-[10px] text-[#737373] uppercase tracking-wider font-semibold block">Lokasi Aktif</span>
+          <p className="font-bold text-[#222222] truncate flex items-center gap-1.5">
+            <MapPin className="w-3.5 h-3.5 text-[#C49A3A]" />
+            {currentLocation.district ? `Kec. ${currentLocation.district}, ` : ''}{currentLocation.name}
           </p>
-          <span className="text-[10px] text-[#777] block font-mono">
+          <span className="text-[10px] text-[#737373] block font-mono">
             {currentLocation.latitude.toFixed(4)}°, {currentLocation.longitude.toFixed(4)}°
           </span>
         </div>
 
-        <div className="bg-[#151515] border border-[#262626] p-3.5 rounded-xl space-y-1">
-          <span className="text-[10px] text-[#888] uppercase tracking-wider block">Derajat Kiblat</span>
-          <p className="text-base font-black text-[#F6C646]">
+        <div className="bg-white border border-[#EAEAEA] p-3.5 rounded-2xl space-y-1 shadow-2xs">
+          <span className="text-[10px] text-[#737373] uppercase tracking-wider font-semibold block">Derajat Kiblat</span>
+          <p className="text-base font-black text-[#C49A3A]">
             {qiblaResult.bearing}°
           </p>
-          <span className="text-[10px] text-[#B8B8B8] block">
+          <span className="text-[10px] text-[#737373] block">
             dari Utara Sejati ({qiblaResult.compassDirection})
           </span>
         </div>
 
-        <div className="bg-[#151515] border border-[#262626] p-3.5 rounded-xl space-y-1">
-          <span className="text-[10px] text-[#888] uppercase tracking-wider block">Jarak ke Ka'bah</span>
-          <p className="text-base font-black text-white">
+        <div className="bg-white border border-[#EAEAEA] p-3.5 rounded-2xl space-y-1 shadow-2xs">
+          <span className="text-[10px] text-[#737373] uppercase tracking-wider font-semibold block">Jarak ke Ka'bah</span>
+          <p className="text-base font-black text-[#222222]">
             {qiblaResult.distanceKm.toLocaleString('id-ID')} km
           </p>
-          <span className="text-[10px] text-[#B8B8B8] block">Makkah Al-Mukarramah</span>
+          <span className="text-[10px] text-[#737373] block">Makkah Al-Mukarramah</span>
         </div>
 
-        <div className="bg-[#151515] border border-[#262626] p-3.5 rounded-xl space-y-1">
-          <span className="text-[10px] text-[#888] uppercase tracking-wider block">Status Sensor</span>
+        <div className="bg-white border border-[#EAEAEA] p-3.5 rounded-2xl space-y-1 shadow-2xs">
+          <span className="text-[10px] text-[#737373] uppercase tracking-wider font-semibold block">Status Sensor</span>
           <div className="flex items-center gap-1.5 pt-0.5">
             {hasCompassSensor ? (
               <>
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-emerald-400 font-bold">Sensor Aktif</span>
+                <span className="w-2 h-2 rounded-full bg-[#21865B] animate-pulse" />
+                <span className="text-[#21865B] font-bold">Kompas Aktif</span>
               </>
             ) : (
               <>
-                <span className="w-2 h-2 rounded-full bg-amber-400" />
-                <span className="text-amber-400 font-semibold">Mode Penunjuk Manual</span>
+                <span className="w-2 h-2 rounded-full bg-[#C49A3A]" />
+                <span className="text-[#C49A3A] font-semibold">Penunjuk Sudut</span>
               </>
             )}
           </div>
-          <span className="text-[10px] text-[#777] block">
-            {gpsAccuracyMeters ? `Akurasi GPS: ±${gpsAccuracyMeters}m` : 'Koordinat Terpilih'}
+          <span className="text-[10px] text-[#737373] block">
+            {gpsAccuracyMeters ? `Akurasi GPS: ±${gpsAccuracyMeters}m` : 'Koordinat Wilayah'}
           </span>
         </div>
       </div>
 
-      {/* Main Interactive Compass Display */}
-      <div className="bg-[#151515] border border-[#262626] rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center relative overflow-hidden shadow-xl">
-        {/* Alignment Glow Effect */}
-        <div
-          className={`absolute inset-0 transition-opacity duration-500 pointer-events-none ${
-            isAligned
-              ? 'opacity-30 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#F6C646]/40 via-transparent to-transparent'
-              : 'opacity-0'
-          }`}
-        />
-
+      {/* Main Interactive Compass Display (White Theme with Gold Bezel) */}
+      <div className="bg-white border border-[#EAEAEA] rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center relative overflow-hidden shadow-xs">
         {/* Status Callout Pill */}
         <div className="mb-6 z-10">
           {isAligned ? (
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#F6C646] text-black font-extrabold text-xs shadow-lg animate-bounce">
-              <CheckCircle2 className="w-4 h-4 fill-black text-[#F6C646]" />
+            <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-[#21865B] text-white font-extrabold text-xs shadow-md animate-bounce">
+              <CheckCircle2 className="w-4 h-4 fill-white text-[#21865B]" />
               <span>ALHAMDULILLAH! TEPAT MENGHADAP KIBLAT</span>
             </div>
           ) : (
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/80 border border-[#262626] text-xs font-medium text-[#B8B8B8]">
-              <RotateCw className="w-3.5 h-3.5 text-[#F6C646] animate-spin" style={{ animationDuration: '8s' }} />
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#FAF3DF] border border-[#E5BD58] text-xs font-bold text-[#C49A3A] shadow-2xs">
+              <RotateCw className="w-3.5 h-3.5 text-[#C49A3A] animate-spin" style={{ animationDuration: '8s' }} />
               <span>
                 Putar perangkat{' '}
-                <strong className="text-white">
+                <strong className="text-[#222222]">
                   {diffAngle > 0 ? `${Math.abs(Math.round(diffAngle))}° ke kanan` : `${Math.abs(Math.round(diffAngle))}° ke kiri`}
                 </strong>
               </span>
@@ -390,31 +391,31 @@ export const QiblaPage: React.FC<Props> = ({ onOpenPrayerTimes }) => {
 
         {/* Visual Dial Container */}
         <div className="relative w-64 h-64 sm:w-80 sm:h-80 flex items-center justify-center select-none my-2">
-          {/* Static Outer Ring (Bezel) with Degree Marks */}
-          <div className="absolute inset-0 rounded-full border-2 border-[#262626] bg-[#0d0d0d] shadow-inner flex items-center justify-center">
+          {/* Static Outer Ring (Bezel) with Gold Accent Marks */}
+          <div className="absolute inset-0 rounded-full border-4 border-[#FAF3DF] bg-[#F8F8F8] shadow-inner flex items-center justify-center">
             {/* Top Indicator Triangle (Phone Heading) */}
             <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20">
-              <div className="w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[12px] border-t-[#F6C646]" />
+              <div className="w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[12px] border-t-[#C49A3A]" />
             </div>
 
-            {/* Inner Ring Glow */}
+            {/* Inner Ring */}
             <div
-              className={`w-[90%] h-[90%] rounded-full border transition duration-300 ${
-                isAligned ? 'border-[#F6C646] shadow-[0_0_30px_rgba(246,198,70,0.3)]' : 'border-[#222]'
+              className={`w-[90%] h-[90%] rounded-full border-2 transition duration-300 bg-white ${
+                isAligned ? 'border-[#21865B] shadow-[0_0_20px_rgba(33,134,91,0.25)]' : 'border-[#EAEAEA]'
               }`}
             />
           </div>
 
-          {/* Rotating Compass Disc (Rotates opposite to effective device heading) */}
+          {/* Rotating Compass Disc */}
           <div
             className="absolute w-full h-full rounded-full transition-transform duration-200 ease-out flex items-center justify-center"
             style={{ transform: `rotate(${-effectiveHeading}deg)` }}
           >
             {/* Cardinal Marks */}
-            <span className="absolute top-3 text-xs font-black text-rose-500 tracking-wider">U</span>
-            <span className="absolute bottom-3 text-xs font-bold text-[#888]">S</span>
-            <span className="absolute right-4 text-xs font-bold text-[#888]">T</span>
-            <span className="absolute left-4 text-xs font-bold text-[#888]">B</span>
+            <span className="absolute top-4 text-xs font-black text-red-600 tracking-wider">U</span>
+            <span className="absolute bottom-4 text-xs font-bold text-[#737373]">S</span>
+            <span className="absolute right-4 text-xs font-bold text-[#737373]">T</span>
+            <span className="absolute left-4 text-xs font-bold text-[#737373]">B</span>
 
             {/* Kaaba Direction Needle / Marker (Fixed at qiblaResult.bearing on the disc) */}
             <div
@@ -422,75 +423,75 @@ export const QiblaPage: React.FC<Props> = ({ onOpenPrayerTimes }) => {
               style={{ transform: `rotate(${qiblaResult.bearing}deg)` }}
             >
               <div className="flex flex-col items-center pt-2">
-                {/* Kaaba Golden Icon */}
+                {/* Kaaba Golden Icon in rounded-square box */}
                 <div
-                  className={`w-9 h-9 rounded-xl border flex items-center justify-center shadow-lg transition-transform ${
+                  className={`w-9 h-9 rounded-xl border flex items-center justify-center shadow-md transition-transform ${
                     isAligned
-                      ? 'bg-[#F6C646] text-black border-white scale-110'
-                      : 'bg-[#1e1a0b] text-[#F6C646] border-[#F6C646]/50'
+                      ? 'bg-[#21865B] text-white border-white scale-110 shadow-lg'
+                      : 'bg-[#FAF3DF] text-[#C49A3A] border-[#E5BD58]'
                   }`}
                   title="Arah Ka'bah"
                 >
                   <span className="text-[13px] font-black">🕋</span>
                 </div>
                 {/* Golden Target Line extending down to center */}
-                <div className="w-1 h-14 bg-gradient-to-b from-[#F6C646] to-transparent mt-1" />
+                <div className={`w-1 h-14 bg-gradient-to-b ${isAligned ? 'from-[#21865B]' : 'from-[#C49A3A]'} to-transparent mt-1`} />
               </div>
             </div>
 
-            {/* Subtle Ticks */}
+            {/* Compass Ticks */}
             {[0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map((deg) => (
               <div
                 key={deg}
                 className="absolute inset-0 flex items-start justify-center"
                 style={{ transform: `rotate(${deg}deg)` }}
               >
-                <div className={`w-0.5 ${deg % 90 === 0 ? 'h-3 bg-[#666]' : 'h-1.5 bg-[#333]'}`} />
+                <div className={`w-0.5 ${deg % 90 === 0 ? 'h-3 bg-[#737373]' : 'h-1.5 bg-[#DDD]'}`} />
               </div>
             ))}
           </div>
 
-          {/* Central Compass Pivot & Heading Readout */}
-          <div className="relative z-10 w-24 h-24 rounded-full bg-[#151515] border-2 border-[#262626] flex flex-col items-center justify-center shadow-xl">
-            <span className="text-[10px] text-[#777] uppercase font-bold tracking-wider">Heading</span>
-            <span className="text-xl font-mono font-black text-white">
+          {/* Central Compass Pivot & Heading Readout in White Card */}
+          <div className="relative z-10 w-24 h-24 rounded-full bg-white border-2 border-[#EAEAEA] shadow-md flex flex-col items-center justify-center">
+            <span className="text-[10px] text-[#737373] uppercase font-bold tracking-wider">Arah</span>
+            <span className="text-xl font-mono font-black text-[#222222]">
               {Math.round(effectiveHeading)}°
             </span>
-            <span className="text-[9px] text-[#F6C646] font-semibold">
+            <span className="text-[9px] text-[#C49A3A] font-bold">
               Kiblat: {Math.round(qiblaResult.bearing)}°
             </span>
           </div>
         </div>
 
         {/* Manual Simulation or Adjustment Slider when sensors absent / user preference */}
-        <div className="w-full max-w-md mt-6 pt-6 border-t border-[#262626] space-y-3">
+        <div className="w-full max-w-md mt-6 pt-6 border-t border-[#EAEAEA] space-y-3">
           <div className="flex items-center justify-between text-xs">
-            <label className="flex items-center gap-2 cursor-pointer text-[#B8B8B8]">
+            <label className="flex items-center gap-2 cursor-pointer text-[#222222] font-semibold">
               <input
                 type="checkbox"
                 checked={useManualMode}
                 onChange={(e) => setUseManualMode(e.target.checked)}
-                className="rounded accent-[#F6C646]"
+                className="rounded accent-[#C49A3A]"
               />
-              <span className="font-medium">Mode Penunjuk Sudut Manual (Simulasi Geser)</span>
+              <span>Mode Penunjuk Derajat Manual</span>
             </label>
 
-            <label className="flex items-center gap-1.5 cursor-pointer text-[#888] text-[11px]" title="Koreksi deklinasi magnetis bumi">
+            <label className="flex items-center gap-1.5 cursor-pointer text-[#737373] text-[11px]" title="Koreksi deklinasi magnetis bumi">
               <input
                 type="checkbox"
                 checked={useTrueNorthCorrection}
                 onChange={(e) => setUseTrueNorthCorrection(e.target.checked)}
-                className="rounded accent-[#F6C646]"
+                className="rounded accent-[#C49A3A]"
               />
               <span>Koreksi Deklinasi ({qiblaResult.magneticDeclination > 0 ? `+${qiblaResult.magneticDeclination}°` : `${qiblaResult.magneticDeclination}°`})</span>
             </label>
           </div>
 
           {useManualMode && (
-            <div className="space-y-1.5 bg-black/50 p-3.5 rounded-xl border border-[#222]">
-              <div className="flex justify-between text-xs text-[#DDD]">
-                <span>Geser Arah Ponsel / Pandangan:</span>
-                <span className="font-mono text-[#F6C646] font-bold">{manualHeading}°</span>
+            <div className="space-y-1.5 bg-[#F8F8F8] p-4 rounded-2xl border border-[#EAEAEA]">
+              <div className="flex justify-between text-xs text-[#222222]">
+                <span className="font-semibold">Geser Arah Hadap Ponsel:</span>
+                <span className="font-mono text-[#C49A3A] font-bold text-sm">{manualHeading}°</span>
               </div>
               <input
                 type="range"
@@ -498,82 +499,106 @@ export const QiblaPage: React.FC<Props> = ({ onOpenPrayerTimes }) => {
                 max={359}
                 value={manualHeading}
                 onChange={(e) => setManualHeading(parseInt(e.target.value, 10))}
-                className="w-full accent-[#F6C646] cursor-pointer"
+                className="w-full accent-[#C49A3A] cursor-pointer"
               />
-              <p className="text-[10px] text-[#777] leading-relaxed">
-                Geser nilai derajat hingga Ka'bah (🕋) tepat berada di puncak penunjuk kuning di atas.
+              <p className="text-[11px] text-[#737373] leading-relaxed">
+                Geser nilai derajat hingga Ka'bah (🕋) berada tepat di puncak penunjuk emas di atas.
               </p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Manual City Selector */}
-      <div className="bg-[#151515] border border-[#262626] p-5 sm:p-6 rounded-2xl space-y-4">
+      {/* Banten 8 Cities Quick Access */}
+      <div className="bg-white border border-[#EAEAEA] p-5 sm:p-6 rounded-3xl space-y-4 shadow-xs">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs font-bold text-[#F6C646] uppercase tracking-wider">
-            <MapPin className="w-4 h-4" />
-            <h2>Pilih Kota / Lokasi Geografis</h2>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#FAF3DF] border border-[#E5BD58]/40 flex items-center justify-center text-[#C49A3A]">
+              <Building2 className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-xs font-bold text-[#222222] uppercase tracking-wider">
+                Arah Kiblat Wilayah Banten (8 Kabupaten & Kota)
+              </h2>
+              <p className="text-[11px] text-[#737373]">Klik daerah untuk melihat derajat akurat</p>
+            </div>
           </div>
-          <span className="text-[11px] text-[#888]">{PRESET_LOCATIONS.length} Kota Terdaftar</span>
+          <button
+            onClick={() => setIsLocationModalOpen(true)}
+            className="text-xs text-[#C49A3A] font-bold hover:underline"
+          >
+            Pilih Kota Lain
+          </button>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-          {PRESET_LOCATIONS.map((city) => {
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {INDONESIA_REGIONS.find((p) => p.id === 'banten')?.cities.map((city) => {
             const isSelected = currentLocation.name === city.name;
+            const bBearing = qiblaService.calculate(city.latitude, city.longitude).bearing;
             return (
               <button
                 key={city.name}
-                onClick={() => handleSelectLocation(city)}
-                className={`p-2.5 rounded-xl text-left border transition ${
+                onClick={() => handleSelectLocation({ ...city, province: 'Banten' })}
+                className={`p-3 rounded-2xl text-left border transition ${
                   isSelected
-                    ? 'bg-[#1e1a0b] border-[#F6C646] text-[#F6C646]'
-                    : 'bg-black/50 border-[#262626] text-[#CCC] hover:border-[#444] hover:text-white'
+                    ? 'bg-[#FAF3DF] border-[#C49A3A] text-[#C49A3A] font-bold shadow-2xs'
+                    : 'bg-[#F8F8F8] border-[#EAEAEA] text-[#222222] hover:border-[#C49A3A]/40'
                 }`}
               >
                 <div className="font-bold text-xs truncate">{city.name}</div>
-                <div className="text-[10px] text-[#777] truncate">{city.province || city.country}</div>
+                <div className="text-[11px] text-[#C49A3A] font-mono font-bold mt-0.5">
+                  {bBearing}° <span className="text-[10px] text-[#737373] font-normal font-sans">Utara</span>
+                </div>
               </button>
             );
           })}
         </div>
       </div>
 
+      {/* Location Modal */}
+      <LocationModal
+        isOpen={isLocationModalOpen}
+        onClose={() => setIsLocationModalOpen(false)}
+        onLocationSelected={(loc) => handleSelectLocation(loc)}
+      />
+
       {/* Calibration Guidance Modal */}
       {isCalibrateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#141414] border border-[#F6C646]/50 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between pb-3 border-b border-[#262626]">
-              <h3 className="font-black text-white text-base flex items-center gap-2">
-                <Compass className="w-5 h-5 text-[#F6C646]" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white border border-[#EAEAEA] rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-[#EAEAEA]">
+              <h3 className="font-black text-[#222222] text-base flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-[#FAF3DF] border border-[#E5BD58]/40 flex items-center justify-center text-[#C49A3A]">
+                  <Compass className="w-4 h-4" />
+                </div>
                 <span>Panduan Kalibrasi Kompas</span>
               </h3>
               <button
                 onClick={() => setIsCalibrateModalOpen(false)}
-                className="text-[#888] hover:text-white p-1"
+                className="w-8 h-8 rounded-xl bg-[#F8F8F8] border border-[#EAEAEA] text-[#737373] hover:text-[#222222] flex items-center justify-center"
               >
                 ✕
               </button>
             </div>
 
-            <div className="space-y-3 text-xs text-[#CCC] leading-relaxed">
-              <div className="p-3 bg-black/60 rounded-xl border border-[#262626] flex items-center gap-3">
-                <div className="text-2xl font-black text-[#F6C646]">∞</div>
-                <p>
+            <div className="space-y-3 text-xs text-[#737373] leading-relaxed">
+              <div className="p-3.5 bg-[#FAF3DF]/60 rounded-2xl border border-[#E5BD58]/50 flex items-center gap-3">
+                <div className="text-3xl font-black text-[#C49A3A]">∞</div>
+                <p className="text-[#222222]">
                   Gerakkan perangkat Anda perlahan membentuk <strong>pola angka 8 (delapan)</strong> di udara selama 5-10 detik.
                 </p>
               </div>
 
-              <ul className="list-disc list-inside space-y-1.5 text-[#AAA] pl-1">
-                <li>Jauhkan perangkat dari benda bermagnet, speaker, casing bermagnet, atau laptop logam.</li>
+              <ul className="list-disc list-inside space-y-1.5 text-[#555] pl-1">
+                <li>Jauhkan perangkat dari casing bermagnet, magnet mobil, speaker, atau logam tebal.</li>
                 <li>Pegang perangkat secara mendatar (flat horizontal) sejajar dengan lantai.</li>
-                <li>Jika browser di PC desktop tidak memiliki sensor magnetometer, gunakan mode manual atau lihat derajat kiblat ({qiblaResult.bearing}°).</li>
+                <li>Jika browser di PC desktop tidak memiliki sensor magnetometer, gunakan mode derajat ({qiblaResult.bearing}°).</li>
               </ul>
             </div>
 
             <button
               onClick={() => setIsCalibrateModalOpen(false)}
-              className="w-full py-2.5 rounded-xl bg-[#F6C646] text-black font-bold text-xs hover:bg-[#FFD455] transition"
+              className="w-full py-2.5 rounded-xl bg-[#C49A3A] hover:bg-[#B3892B] text-white font-bold text-xs transition shadow-xs"
             >
               Mengerti & Selesai
             </button>

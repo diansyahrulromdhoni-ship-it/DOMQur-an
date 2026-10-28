@@ -107,43 +107,45 @@ export const DuaDhikrModal: React.FC<Props> = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-2xl bg-[#141414] border border-[#262626] rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col max-h-[88vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="w-full max-w-2xl bg-white border border-[#EAEAEA] rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col max-h-[88vh] text-[#222222]">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-[#262626]">
-          <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-[#F6C646]/20 text-[#F6C646]">
-              <Heart className="w-4 h-4 fill-[#F6C646]" />
-            </span>
+        <div className="flex items-center justify-between pb-4 border-b border-[#EAEAEA]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-[#FAF3DF] border border-[#E5BD58] flex items-center justify-center text-[#C49A3A] shadow-xs">
+              <Heart className="w-5 h-5 fill-[#C49A3A]" />
+            </div>
             <div>
-              <h3 className="text-sm sm:text-base font-bold text-white">
+              <h3 className="text-sm sm:text-base font-bold text-[#222222]">
                 Kumpulan Doa Harian & Dzikir Mustajab
               </h3>
-              <p className="text-[11px] text-[#888]">Teks Arab, Latin, Terjemahan & Sanad Riwayat</p>
+              <p className="text-xs text-[#737373]">Teks Arab, Latin, Terjemahan & Riwayat Shahih</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-[#888] hover:text-white rounded-lg hover:bg-[#222] transition"
+            className="w-9 h-9 rounded-xl bg-[#F8F8F8] border border-[#EAEAEA] text-[#737373] hover:text-[#222222] hover:bg-[#EAEAEA] flex items-center justify-center transition"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Search & Category Pills */}
-        <div className="pt-3 pb-2 space-y-2">
+        <div className="pt-3 pb-2 space-y-2.5">
           <div className="relative">
-            <Search className="w-4 h-4 text-[#888] absolute left-3 top-1/2 -translate-y-1/2" />
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-md bg-[#FAF3DF] text-[#C49A3A] flex items-center justify-center">
+              <Search className="w-3.5 h-3.5" />
+            </div>
             <input
               type="text"
               placeholder="Cari doa (misal: adzan, istighfar, orang tua)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-black text-white pl-9 pr-4 py-2 rounded-xl border border-[#262626] text-xs focus:outline-none focus:border-[#F6C646]"
+              className="w-full bg-[#FFFFFF] text-[#222222] pl-11 pr-4 py-2.5 rounded-xl border border-[#EAEAEA] text-xs focus:outline-none focus:border-[#C49A3A] focus:ring-2 focus:ring-[#FAF3DF] transition shadow-2xs"
             />
           </div>
 
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
             {[
               { id: 'all', label: 'Semua Doa' },
               { id: 'adzan', label: 'Doa Adzan' },
@@ -154,10 +156,10 @@ export const DuaDhikrModal: React.FC<Props> = ({ isOpen, onClose }) => {
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id)}
-                className={`px-3 py-1.5 rounded-xl font-medium whitespace-nowrap transition ${
+                className={`px-3 py-1.5 rounded-xl font-semibold whitespace-nowrap transition ${
                   activeCategory === cat.id
-                    ? 'bg-[#F6C646] text-black font-bold shadow-sm'
-                    : 'bg-[#1A1A1A] text-[#888] hover:text-white border border-[#262626]'
+                    ? 'bg-[#C49A3A] text-white shadow-xs'
+                    : 'bg-[#F8F8F8] text-[#737373] hover:text-[#222222] border border-[#EAEAEA]'
                 }`}
               >
                 {cat.label}
@@ -169,27 +171,27 @@ export const DuaDhikrModal: React.FC<Props> = ({ isOpen, onClose }) => {
         {/* List of Duas */}
         <div className="overflow-y-auto py-2 space-y-3 flex-1 pr-1">
           {filteredDua.length === 0 ? (
-            <div className="text-center py-8 text-xs text-[#888]">
+            <div className="text-center py-8 text-xs text-[#737373]">
               Tidak menemukan doa dengan kata kunci tersebut.
             </div>
           ) : (
             filteredDua.map((item) => (
               <div
                 key={item.id}
-                className="bg-black/70 border border-[#262626] rounded-2xl p-4 space-y-3 hover:border-[#F6C646]/30 transition"
+                className="bg-white border border-[#EAEAEA] rounded-2xl p-4 space-y-3 hover:border-[#E5BD58] hover:shadow-xs transition"
               >
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#F6C646]" />
+                  <h4 className="text-xs sm:text-sm font-bold text-[#222222] flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[#C49A3A]" />
                     <span>{item.title}</span>
                   </h4>
                   <button
                     onClick={() => handleCopy(item)}
-                    className="flex items-center gap-1 text-[11px] text-[#888] hover:text-[#F6C646] transition p-1"
+                    className="flex items-center gap-1.5 text-xs text-[#737373] hover:text-[#C49A3A] px-2.5 py-1 rounded-lg bg-[#F8F8F8] border border-[#EAEAEA] hover:border-[#E5BD58] transition"
                     title="Salin teks doa"
                   >
                     {copiedId === item.id ? (
-                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
                     ) : (
                       <Copy className="w-3.5 h-3.5" />
                     )}
@@ -197,14 +199,14 @@ export const DuaDhikrModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   </button>
                 </div>
 
-                <p className="font-quran text-right text-xl sm:text-2xl text-[#FFD455] leading-loose">
+                <p className="font-quran text-right text-xl sm:text-2xl text-[#222222] leading-loose">
                   {item.arabic}
                 </p>
 
-                <div className="space-y-1.5 pt-2 border-t border-[#222] text-xs">
-                  <p className="text-white italic leading-relaxed">{item.latin}</p>
-                  <p className="text-[#B8B8B8] leading-relaxed">"{item.arti}"</p>
-                  <span className="text-[10px] text-[#F6C646] font-medium block pt-1">
+                <div className="space-y-1.5 pt-2 border-t border-[#EAEAEA] text-xs">
+                  <p className="text-[#C49A3A] italic leading-relaxed">{item.latin}</p>
+                  <p className="text-[#555555] leading-relaxed">"{item.arti}"</p>
+                  <span className="text-[11px] text-[#737373] font-medium block pt-1">
                     {item.riwayat}
                   </span>
                 </div>

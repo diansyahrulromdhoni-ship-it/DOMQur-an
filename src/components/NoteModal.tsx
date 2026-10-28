@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, StickyNote, Save, Trash2 } from 'lucide-react';
+import { X, StickyNote, Save, Trash2, Check } from 'lucide-react';
 import { quranStorage } from '../storage/quranStorage';
 
 interface Props {
@@ -50,57 +50,63 @@ export const NoteModal: React.FC<Props> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-150">
       <div
-        className="w-full max-w-md bg-[#151515] border border-[#262626] rounded-2xl flex flex-col shadow-2xl overflow-hidden"
+        className="w-full max-w-md bg-white border border-[#EAEAEA] rounded-3xl flex flex-col shadow-2xl overflow-hidden text-[#222222]"
         role="dialog"
         aria-modal="true"
         aria-labelledby="note-modal-title"
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#262626] bg-[#121212]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#EAEAEA] bg-white">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-black border border-[#F6C646]/30 flex items-center justify-center text-[#F6C646]">
+            <div className="w-9 h-9 rounded-xl bg-[#FAF3DF] border border-[#E5BD58] flex items-center justify-center text-[#C49A3A] shadow-xs">
               <StickyNote className="w-4 h-4" />
             </div>
             <div>
-              <h3 id="note-modal-title" className="text-sm font-bold text-white">
-                Catatan Pribadi
-              </h3>
-              <p className="text-xs text-[#B8B8B8]">{surahName} : Ayat {ayahNomor}</p>
+              <h2 id="note-modal-title" className="text-sm font-bold text-[#222222]">
+                Catatan Tadabbur Ayat
+              </h2>
+              <p className="text-xs text-[#737373]">
+                QS. {surahName} : Ayat {ayahNomor}
+              </p>
             </div>
           </div>
+
           <button
             onClick={onClose}
-            className="p-1.5 text-[#B8B8B8] hover:text-white rounded-lg hover:bg-[#1E1E1E] transition"
-            aria-label="Tutup"
+            className="w-9 h-9 rounded-xl bg-[#F8F8F8] border border-[#EAEAEA] text-[#737373] hover:text-[#222222] hover:bg-[#EAEAEA] flex items-center justify-center transition"
+            aria-label="Tutup catatan"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="p-5 space-y-3">
-          <label htmlFor="ayah-note-textarea" className="text-xs text-[#B8B8B8] block">
-            Tulis tadabbur, renungan, atau catatan pribadi untuk ayat ini (tersimpan di perangkat):
-          </label>
+          <p className="text-xs text-[#737373] leading-relaxed">
+            Tuliskan renungan, mutiara hikmah, atau refleksi pribadi untuk ayat ini. Catatan disimpan secara offline pada perangkat ini.
+          </p>
+
           <textarea
-            id="ayah-note-textarea"
-            rows={5}
             value={noteText}
             onChange={(e) => setNoteText(e.target.value)}
-            placeholder="Tuliskan catatan Anda di sini..."
-            className="w-full bg-black/60 border border-[#262626] focus:border-[#F6C646] rounded-xl p-3 text-xs sm:text-sm text-white focus:outline-none transition resize-none placeholder:text-[#555]"
+            placeholder="Tuliskan renungan tadabbur Anda di sini..."
+            rows={5}
+            className="w-full bg-[#F8F8F8] border border-[#EAEAEA] rounded-2xl p-3.5 text-xs sm:text-sm text-[#222222] placeholder:text-[#999999] focus:outline-none focus:border-[#C49A3A] focus:ring-2 focus:ring-[#FAF3DF] resize-none transition"
           />
 
           {isSavedNotice && (
-            <p className="text-xs text-[#F6C646] font-medium text-center">Catatan berhasil disimpan!</p>
+            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-xl animate-in fade-in">
+              <Check className="w-4 h-4 text-emerald-600" />
+              <span>Catatan berhasil disimpan ke perangkat!</span>
+            </div>
           )}
         </div>
 
-        <div className="px-5 py-3 border-t border-[#262626] bg-[#121212] flex items-center justify-between">
-          {noteText ? (
+        <div className="flex items-center justify-between px-5 py-4 border-t border-[#EAEAEA] bg-[#F8F8F8]">
+          {noteText.trim() ? (
             <button
               onClick={handleDelete}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-950/30 rounded-lg transition"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-rose-200 transition"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>Hapus</span>
@@ -112,16 +118,16 @@ export const NoteModal: React.FC<Props> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-[#1E1E1E] hover:bg-[#262626] text-[#B8B8B8] transition"
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-[#737373] hover:text-[#222222] hover:bg-white border border-transparent hover:border-[#EAEAEA] transition"
             >
               Batal
             </button>
             <button
               onClick={handleSave}
-              className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-lg bg-[#F6C646] hover:bg-[#FFD455] text-black transition shadow-md"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#C49A3A] hover:bg-[#B3892B] text-white shadow-xs transition"
             >
               <Save className="w-3.5 h-3.5" />
-              <span>Simpan</span>
+              <span>Simpan Catatan</span>
             </button>
           </div>
         </div>

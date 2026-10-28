@@ -121,26 +121,26 @@ export const AsmaulHusnaModal: React.FC<Props> = ({ isOpen, onClose }) => {
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-3xl bg-[#141414] border border-[#262626] rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col max-h-[88vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="w-full max-w-3xl bg-white border border-[#EAEAEA] rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col max-h-[88vh] text-[#222222]">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-[#262626]">
-          <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-[#F6C646]/20 text-[#F6C646]">
-              <Sparkles className="w-4 h-4 fill-[#F6C646]" />
-            </span>
+        <div className="flex items-center justify-between pb-4 border-b border-[#EAEAEA]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-[#FAF3DF] border border-[#E5BD58] flex items-center justify-center text-[#C49A3A] shadow-xs">
+              <Sparkles className="w-5 h-5 fill-[#C49A3A]" />
+            </div>
             <div>
-              <h3 className="text-sm sm:text-base font-bold text-white">
+              <h3 className="text-sm sm:text-base font-bold text-[#222222]">
                 99 Asmaul Husna (Nama-Nama Indah Allah)
               </h3>
-              <p className="text-[11px] text-[#888]">
+              <p className="text-xs text-[#737373]">
                 "Milik Allah nama-nama yang indah, maka bermohonlah kepada-Nya dengan menyebut nama-nama itu." (QS. Al-A'raf: 180)
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-[#888] hover:text-white rounded-lg hover:bg-[#222] transition"
+            className="w-9 h-9 rounded-xl bg-[#F8F8F8] border border-[#EAEAEA] text-[#737373] hover:text-[#222222] hover:bg-[#EAEAEA] flex items-center justify-center transition"
           >
             <X className="w-5 h-5" />
           </button>
@@ -149,13 +149,15 @@ export const AsmaulHusnaModal: React.FC<Props> = ({ isOpen, onClose }) => {
         {/* Search */}
         <div className="py-3">
           <div className="relative">
-            <Search className="w-4 h-4 text-[#888] absolute left-3 top-1/2 -translate-y-1/2" />
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-md bg-[#FAF3DF] text-[#C49A3A] flex items-center justify-center">
+              <Search className="w-3.5 h-3.5" />
+            </div>
             <input
               type="text"
               placeholder="Cari nama Allah atau arti (misal: Ar-Rahman, Pengasih, 1)..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-black text-white pl-9 pr-4 py-2 rounded-xl border border-[#262626] text-xs focus:outline-none focus:border-[#F6C646]"
+              className="w-full bg-[#FFFFFF] text-[#222222] pl-11 pr-4 py-2.5 rounded-xl border border-[#EAEAEA] text-xs focus:outline-none focus:border-[#C49A3A] focus:ring-2 focus:ring-[#FAF3DF] transition shadow-2xs"
             />
           </div>
         </div>
@@ -165,22 +167,22 @@ export const AsmaulHusnaModal: React.FC<Props> = ({ isOpen, onClose }) => {
           {filtered.map((item) => (
             <div
               key={item.no}
-              className="bg-black/60 border border-[#262626] rounded-2xl p-3.5 flex items-center justify-between hover:border-[#F6C646]/40 transition group"
+              className="bg-white border border-[#EAEAEA] rounded-2xl p-3.5 flex items-center justify-between hover:border-[#E5BD58] hover:shadow-2xs transition group"
             >
-              <div className="flex items-center gap-3">
-                <span className="w-7 h-7 rounded-lg bg-[#181818] border border-[#333] flex items-center justify-center text-xs font-bold text-[#F6C646] font-mono shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-[#FAF3DF] border border-[#E5BD58] flex items-center justify-center text-xs font-bold text-[#C49A3A] font-mono shrink-0 shadow-2xs">
                   {item.no}
-                </span>
-                <div>
-                  <h4 className="text-xs font-bold text-white group-hover:text-[#F6C646] transition-colors">
+                </div>
+                <div className="min-w-0">
+                  <h4 className="text-xs font-bold text-[#222222] group-hover:text-[#C49A3A] transition-colors truncate">
                     {item.latin}
                   </h4>
-                  <p className="text-[11px] text-[#888] leading-tight mt-0.5">{item.arti}</p>
+                  <p className="text-[11px] text-[#737373] leading-tight mt-0.5 truncate">{item.arti}</p>
                 </div>
               </div>
 
               <div className="text-right pl-2 shrink-0">
-                <span className="font-quran text-lg text-[#FFD455]">{item.arab}</span>
+                <span className="font-quran text-lg text-[#C49A3A] font-bold">{item.arab}</span>
               </div>
             </div>
           ))}

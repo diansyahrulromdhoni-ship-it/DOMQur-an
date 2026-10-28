@@ -2,14 +2,10 @@ import React, { useState, useEffect } from 'react';
 import {
   Settings,
   Type,
-  Eye,
-  Target,
   Headphones,
   RotateCcw,
   Check,
-  ShieldCheck,
   Smartphone,
-  Info,
   Volume2,
   VolumeX,
   Bell,
@@ -17,12 +13,11 @@ import {
   Square,
   AlertTriangle,
   Monitor,
-  ExternalLink,
   Laptop
 } from 'lucide-react';
 import { quranStorage, DEFAULT_SETTINGS } from '../storage/quranStorage';
 import { UserSettings } from '../types/quran';
-import { RECITERS, APP_CONFIG } from '../config';
+import { RECITERS } from '../config';
 import { PWAInstallButton } from '../components/PWAInstallButton';
 import {
   audioManager,
@@ -86,7 +81,7 @@ export const SettingsPage: React.FC = () => {
   };
 
   const handleReset = () => {
-    if (confirm('Kembalikan semua pengaturan Al-Qur\'an dan Audio ke standar awal?')) {
+    if (confirm('Kembalikan semua preferensi Al-Qur\'an dan Audio ke standar awal?')) {
       const resetQuran = quranStorage.resetSettings();
       setQuranSettings(resetQuran);
       audioManager.saveSettings(DEFAULT_AUDIO_SETTINGS);
@@ -96,31 +91,35 @@ export const SettingsPage: React.FC = () => {
   };
 
   const eventLabels: { key: PrayerEventType; label: string; desc: string }[] = [
-    { key: 'imsak', label: 'Pengingat Imsak', desc: '10 menit sebelum adzan Subuh untuk bersiap puasa' },
+    { key: 'imsak', label: 'Pengingat Imsak', desc: '10 menit sebelum waktu Subuh untuk bersiap puasa' },
     { key: 'subuh', label: 'Adzan Subuh', desc: 'Lantunan adzan khusus Subuh (Ash-shalatu khairum minan naum)' },
     { key: 'terbit', label: 'Terbit Matahari (Syuruq)', desc: 'Suara alami ayam berkokok menandai fajar berakhir' },
     { key: 'dzuhur', label: 'Adzan Dzuhur', desc: 'Lantunan adzan berkumandang merdu' },
     { key: 'ashar', label: 'Adzan Ashar', desc: 'Lantunan adzan berkumandang merdu' },
-    { key: 'maghrib', label: 'Adzan Maghrib', desc: 'Lantunan adzan tanda masuknya waktu berbuka & maghrib' },
+    { key: 'maghrib', label: 'Adzan Maghrib', desc: 'Lantunan adzan tanda masuknya waktu maghrib & berbuka' },
     { key: 'isya', label: 'Adzan Isya', desc: 'Lantunan adzan waktu isya dan qiyamul lail' }
   ];
 
   return (
     <div className="space-y-6 pb-16 animate-in fade-in duration-150">
       {/* Header Banner */}
-      <div className="bg-[#151515] p-5 sm:p-6 rounded-2xl border border-[#262626] flex items-center justify-between">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
-            <span>Pengaturan Aplikasi</span>
-            <Settings className="w-5 h-5 text-[#F6C646]" />
-          </h1>
-          <p className="text-xs text-[#B8B8B8] mt-1">
-            Konfigurasi audio adzan & pengingat, notifikasi, tilawah Qur'an, serta arsitektur deployment aplikasi.
-          </p>
+      <div className="bg-white p-5 sm:p-6 rounded-2xl border border-[#EAEAEA] shadow-xs flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[#FAF3DF] border border-[#E5BD58] flex items-center justify-center text-[#C49A3A] shadow-xs shrink-0">
+            <Settings className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-[#222222] tracking-tight">
+              Pengaturan Aplikasi
+            </h1>
+            <p className="text-xs text-[#737373] mt-0.5">
+              Kelola suara adzan, notifikasi salat, preferensi mushaf, serta integrasi PWA
+            </p>
+          </div>
         </div>
 
         {saveToast && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F6C646] text-black text-xs font-bold rounded-xl animate-in fade-in duration-200">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FAF3DF] text-[#C49A3A] border border-[#E5BD58] text-xs font-bold rounded-xl animate-in fade-in duration-200">
             <Check className="w-3.5 h-3.5" />
             <span>Tersimpan</span>
           </div>
@@ -128,32 +127,37 @@ export const SettingsPage: React.FC = () => {
       </div>
 
       {/* 1. Pengaturan Audio Pengingat & Suara Adzan */}
-      <section className="bg-[#151515] border border-[#262626] rounded-2xl p-5 space-y-4">
-        <div className="flex items-center justify-between border-b border-[#222] pb-3">
-          <div className="flex items-center gap-2 text-xs font-bold text-[#F6C646] uppercase tracking-wider">
-            <Volume2 className="w-4 h-4" />
-            <h2>Audio Pengingat & Suara Adzan</h2>
+      <section className="bg-white border border-[#EAEAEA] rounded-2xl p-5 sm:p-6 space-y-5 shadow-xs">
+        <div className="flex items-center justify-between border-b border-[#EAEAEA] pb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-[#FAF3DF] border border-[#E5BD58] flex items-center justify-center text-[#C49A3A]">
+              <Volume2 className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-[#222222]">Audio Pengingat & Suara Adzan</h2>
+              <p className="text-xs text-[#737373]">Aktifkan audio otomatis saat memasuki waktu salat</p>
+            </div>
           </div>
 
-          <label className="flex items-center gap-2 cursor-pointer">
-            <span className="text-xs text-white font-semibold">
+          <label className="flex items-center gap-2 cursor-pointer bg-[#F8F8F8] px-3 py-1.5 rounded-xl border border-[#EAEAEA]">
+            <span className="text-xs text-[#222222] font-semibold">
               {audioSettings.soundEnabled ? 'Aktif' : 'Nonaktif'}
             </span>
             <input
               type="checkbox"
               checked={audioSettings.soundEnabled}
               onChange={(e) => updateAudioSetting({ soundEnabled: e.target.checked })}
-              className="accent-[#F6C646] w-4 h-4"
+              className="accent-[#C49A3A] w-4 h-4 cursor-pointer"
             />
           </label>
         </div>
 
         {/* Browser Autoplay State Indicator */}
-        <div className="p-3 bg-black/50 border border-[#262626] rounded-xl flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${isAudioUnlocked ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-            <span className="text-[#CCC]">
-              Status Izin Audio Browser: <strong className="text-white">{isAudioUnlocked ? 'Terbuka (Siap Putar)' : 'Terkunci (Butuh Sentuhan)'}</strong>
+        <div className="p-4 bg-[#F8F8F8] border border-[#EAEAEA] rounded-2xl flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2.5">
+            <span className={`w-2.5 h-2.5 rounded-full ${isAudioUnlocked ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+            <span className="text-[#555555]">
+              Status Izin Audio Browser: <strong className="text-[#222222]">{isAudioUnlocked ? 'Terbuka (Siap Putar)' : 'Terkunci (Perlu Klik Sekali)'}</strong>
             </span>
           </div>
           {!isAudioUnlocked && (
@@ -162,9 +166,9 @@ export const SettingsPage: React.FC = () => {
                 audioManager.unlockAudio();
                 setIsAudioUnlocked(true);
               }}
-              className="px-2.5 py-1 rounded-lg bg-[#F6C646] text-black text-[11px] font-bold"
+              className="px-3 py-1.5 rounded-xl bg-[#FAF3DF] text-[#C49A3A] border border-[#E5BD58] text-xs font-bold hover:bg-[#C49A3A] hover:text-white transition"
             >
-              Buka Kunci
+              Buka Kunci Audio
             </button>
           )}
         </div>
@@ -172,8 +176,8 @@ export const SettingsPage: React.FC = () => {
         {/* Volume Slider */}
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs sm:text-sm">
-            <span className="text-white font-medium">Volume Suara Pengingat & Adzan:</span>
-            <span className="font-mono text-[#F6C646] font-bold">{Math.round(audioSettings.volume * 100)}%</span>
+            <span className="text-[#222222] font-semibold">Volume Suara Pengingat & Adzan:</span>
+            <span className="font-mono text-[#C49A3A] font-bold">{Math.round(audioSettings.volume * 100)}%</span>
           </div>
           <input
             type="range"
@@ -182,39 +186,43 @@ export const SettingsPage: React.FC = () => {
             step={0.05}
             value={audioSettings.volume}
             onChange={(e) => updateAudioSetting({ volume: parseFloat(e.target.value) })}
-            className="w-full accent-[#F6C646] cursor-pointer"
+            className="w-full h-2 bg-[#EAEAEA] rounded-lg appearance-none cursor-pointer accent-[#C49A3A]"
           />
         </div>
 
         {/* Per-Event Toggles (Subuh, Terbit, Dzuhur, Ashar, Maghrib, Isya, Imsak) */}
-        <div className="space-y-2 pt-2">
-          <span className="text-xs text-[#888] font-bold uppercase tracking-wider block">
+        <div className="space-y-3 pt-2">
+          <span className="text-xs text-[#737373] font-bold uppercase tracking-wider block">
             Pilihan Peristiwa Suara:
           </span>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {eventLabels.map((item) => {
               const isEnabled = audioSettings.eventToggles[item.key];
               return (
                 <label
                   key={item.key}
-                  className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition ${
+                  className={`p-3.5 rounded-2xl border flex items-center justify-between cursor-pointer transition ${
                     isEnabled
-                      ? 'bg-black/60 border-[#F6C646]/30 text-white'
-                      : 'bg-black/30 border-[#222] text-[#777]'
+                      ? 'bg-[#FAF3DF]/50 border-[#E5BD58] text-[#222222]'
+                      : 'bg-[#F8F8F8] border-[#EAEAEA] text-[#737373]'
                   }`}
                 >
                   <div className="space-y-0.5 pr-2">
-                    <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                      {isEnabled ? <Volume2 className="w-3.5 h-3.5 text-[#F6C646]" /> : <VolumeX className="w-3.5 h-3.5 text-[#666]" />}
+                    <div className="text-xs font-bold text-[#222222] flex items-center gap-2">
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center border ${
+                        isEnabled ? 'bg-white border-[#E5BD58] text-[#C49A3A]' : 'bg-[#EAEAEA] border-[#D0D0D0] text-[#737373]'
+                      }`}>
+                        {isEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+                      </div>
                       <span>{item.label}</span>
                     </div>
-                    <p className="text-[10px] text-[#888]">{item.desc}</p>
+                    <p className="text-[11px] text-[#737373] pl-9">{item.desc}</p>
                   </div>
                   <input
                     type="checkbox"
                     checked={isEnabled}
                     onChange={() => handleToggleEvent(item.key)}
-                    className="accent-[#F6C646] w-4 h-4 shrink-0"
+                    className="accent-[#C49A3A] w-4 h-4 shrink-0 cursor-pointer"
                   />
                 </label>
               );
@@ -223,23 +231,23 @@ export const SettingsPage: React.FC = () => {
         </div>
 
         {/* Test Audio Section */}
-        <div className="pt-3 border-t border-[#222] space-y-2">
+        <div className="pt-3 border-t border-[#EAEAEA] space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-[#888] font-bold uppercase tracking-wider block">
+            <span className="text-xs text-[#737373] font-bold uppercase tracking-wider block">
               Uji Coba Suara (4 Saluran Audio Resmi):
             </span>
             {activeAlert && (
               <button
                 onClick={() => audioManager.stopAudio()}
-                className="text-xs text-red-400 font-semibold hover:underline flex items-center gap-1"
+                className="text-xs text-rose-600 font-semibold hover:underline flex items-center gap-1"
               >
                 <Square className="w-3 h-3 fill-current" />
-                <span>Hentikan</span>
+                <span>Hentikan Suara</span>
               </button>
             )}
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
             {AUDIO_TEST_PRESETS.map((preset) => {
               const isPlaying = activeAlert?.isTest && activeAlert?.title.includes(preset.name) && activeAlert?.isPlaying;
               return (
@@ -252,13 +260,15 @@ export const SettingsPage: React.FC = () => {
                       audioManager.playTestAudio(preset.id as any);
                     }
                   }}
-                  className={`p-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border transition ${
+                  className={`p-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 border transition ${
                     isPlaying
-                      ? 'bg-red-500 text-white border-red-500'
-                      : 'bg-black/60 text-[#F6C646] hover:bg-[#F6C646] hover:text-black border-[#F6C646]/30'
+                      ? 'bg-rose-500 text-white border-rose-500 shadow-xs'
+                      : 'bg-white text-[#C49A3A] hover:bg-[#FAF3DF] border-[#EAEAEA] hover:border-[#E5BD58]'
                   }`}
                 >
-                  {isPlaying ? <Square className="w-3 h-3 fill-current" /> : <Play className="w-3 h-3 fill-current" />}
+                  <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${isPlaying ? 'bg-rose-600 text-white' : 'bg-[#FAF3DF] text-[#C49A3A]'}`}>
+                    {isPlaying ? <Square className="w-3 h-3 fill-current" /> : <Play className="w-3 h-3 fill-current" />}
+                  </div>
                   <span className="truncate">{preset.name}</span>
                 </button>
               );
@@ -268,70 +278,80 @@ export const SettingsPage: React.FC = () => {
       </section>
 
       {/* 2. Pengaturan Notifikasi Browser & PWA */}
-      <section className="bg-[#151515] border border-[#262626] rounded-2xl p-5 space-y-4">
-        <div className="flex items-center justify-between border-b border-[#222] pb-3">
-          <div className="flex items-center gap-2 text-xs font-bold text-[#F6C646] uppercase tracking-wider">
-            <Bell className="w-4 h-4" />
-            <h2>Notifikasi Waktu Salat</h2>
+      <section className="bg-white border border-[#EAEAEA] rounded-2xl p-5 sm:p-6 space-y-4 shadow-xs">
+        <div className="flex items-center justify-between border-b border-[#EAEAEA] pb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-[#FAF3DF] border border-[#E5BD58] flex items-center justify-center text-[#C49A3A]">
+              <Bell className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-[#222222]">Notifikasi Waktu Salat</h2>
+              <p className="text-xs text-[#737373]">Pengingat pop-up saat waktu ibadah tiba</p>
+            </div>
           </div>
 
-          <span className={`text-xs px-2 py-0.5 rounded font-bold uppercase ${
+          <span className={`text-xs px-2.5 py-1 rounded-lg font-bold uppercase ${
             notifPermission === 'granted'
-              ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800'
-              : 'bg-[#222] text-[#888]'
+              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+              : 'bg-[#F8F8F8] text-[#737373] border border-[#EAEAEA]'
           }`}>
             {notifPermission === 'granted' ? 'Diizinkan' : notifPermission === 'denied' ? 'Ditolak' : 'Belum Diminta'}
           </span>
         </div>
 
-        <p className="text-xs text-[#B8B8B8] leading-relaxed">
-          Notifikasi browser memunculkan banner pengingat visual saat waktu salat tiba ketika tab sedang aktif atau berjalan di latar belakang (background tab).
+        <p className="text-xs text-[#737373] leading-relaxed">
+          Notifikasi browser memunculkan pengingat visual saat waktu salat tiba ketika tab sedang aktif atau berjalan di latar belakang (background tab).
         </p>
 
         {notifPermission !== 'granted' ? (
           <button
             onClick={handleRequestNotifPermission}
-            className="w-full py-2.5 rounded-xl bg-[#F6C646] text-black font-bold text-xs hover:bg-[#FFD455] transition shadow-md"
+            className="w-full py-3 rounded-xl bg-[#C49A3A] hover:bg-[#B3892B] text-white font-bold text-xs transition shadow-xs"
           >
             Aktifkan Izin Notifikasi Browser
           </button>
         ) : (
-          <div className="flex items-center justify-between p-3 bg-black/40 border border-[#222] rounded-xl text-xs">
-            <span className="text-white font-medium">Kirim Notifikasi saat Jadwal Tiba:</span>
+          <div className="flex items-center justify-between p-4 bg-[#F8F8F8] border border-[#EAEAEA] rounded-2xl text-xs">
+            <span className="text-[#222222] font-semibold">Kirim Notifikasi saat Jadwal Tiba:</span>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={audioSettings.notificationsEnabled}
                 onChange={(e) => updateAudioSetting({ notificationsEnabled: e.target.checked })}
-                className="accent-[#F6C646] w-4 h-4"
+                className="accent-[#C49A3A] w-4 h-4 cursor-pointer"
               />
             </label>
           </div>
         )}
 
-        <div className="p-3 bg-black/40 border border-[#262626] rounded-xl text-[11px] text-[#888] space-y-1">
-          <div className="flex items-center gap-1.5 text-amber-400 font-semibold">
-            <AlertTriangle className="w-3.5 h-3.5" />
+        <div className="p-3.5 bg-[#FAF3DF]/60 border border-[#E5BD58]/30 rounded-2xl text-xs text-[#737373] space-y-1">
+          <div className="flex items-center gap-1.5 text-[#C49A3A] font-semibold">
+            <AlertTriangle className="w-4 h-4" />
             <span>Keterbatasan Lingkungan Browser:</span>
           </div>
-          <p>
-            Jika browser atau aplikasi ditutup sepenuhnya oleh sistem operasi (terutama pada iOS/Android hemat daya), timer JavaScript di browser otomatis dihentikan oleh OS. Untuk pemutaran audio adzan saat aplikasi tertutup total, diperlukan integrasi aplikasi native atau background push notification.
+          <p className="leading-relaxed">
+            Jika tab browser ditutup oleh sistem operasi seluler (manajemen daya iOS/Android), timer audio browser akan ditahan oleh sistem. Untuk pengalaman terbaik, pasang aplikasi sebagai PWA ke layar utama.
           </p>
         </div>
       </section>
 
       {/* 3. Tipografi & Ukuran Teks Al-Qur'an */}
-      <section className="bg-[#151515] border border-[#262626] rounded-2xl p-5 space-y-4">
-        <div className="flex items-center gap-2 text-xs font-bold text-[#F6C646] uppercase tracking-wider">
-          <Type className="w-4 h-4" />
-          <h2>Tipografi & Ukuran Teks Al-Qur'an</h2>
+      <section className="bg-white border border-[#EAEAEA] rounded-2xl p-5 sm:p-6 space-y-5 shadow-xs">
+        <div className="flex items-center gap-2.5 border-b border-[#EAEAEA] pb-4">
+          <div className="w-9 h-9 rounded-xl bg-[#FAF3DF] border border-[#E5BD58] flex items-center justify-center text-[#C49A3A]">
+            <Type className="w-4 h-4" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-[#222222]">Tipografi & Ukuran Teks Al-Qur'an</h2>
+            <p className="text-xs text-[#737373]">Sesuaikan kenyamanan membaca ayat suci</p>
+          </div>
         </div>
 
         {/* Arabic Font Size */}
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs sm:text-sm">
-            <span className="text-white font-medium">Ukuran Teks Arab:</span>
-            <span className="font-mono text-[#F6C646] font-bold">{quranSettings.arabicFontSize}px</span>
+            <span className="text-[#222222] font-semibold">Ukuran Teks Arab:</span>
+            <span className="font-mono text-[#C49A3A] font-bold">{quranSettings.arabicFontSize}px</span>
           </div>
           <input
             type="range"
@@ -340,15 +360,15 @@ export const SettingsPage: React.FC = () => {
             step={2}
             value={quranSettings.arabicFontSize}
             onChange={(e) => updateQuranSetting('arabicFontSize', parseInt(e.target.value, 10))}
-            className="w-full accent-[#F6C646] cursor-pointer"
+            className="w-full h-2 bg-[#EAEAEA] rounded-lg appearance-none cursor-pointer accent-[#C49A3A]"
           />
         </div>
 
         {/* Translation Font Size */}
         <div className="space-y-2 pt-2">
           <div className="flex items-center justify-between text-xs sm:text-sm">
-            <span className="text-white font-medium">Ukuran Terjemahan Indonesia:</span>
-            <span className="font-mono text-[#F6C646] font-bold">{quranSettings.translationFontSize}px</span>
+            <span className="text-[#222222] font-semibold">Ukuran Terjemahan Indonesia:</span>
+            <span className="font-mono text-[#C49A3A] font-bold">{quranSettings.translationFontSize}px</span>
           </div>
           <input
             type="range"
@@ -357,14 +377,14 @@ export const SettingsPage: React.FC = () => {
             step={1}
             value={quranSettings.translationFontSize}
             onChange={(e) => updateQuranSetting('translationFontSize', parseInt(e.target.value, 10))}
-            className="w-full accent-[#F6C646] cursor-pointer"
+            className="w-full h-2 bg-[#EAEAEA] rounded-lg appearance-none cursor-pointer accent-[#C49A3A]"
           />
         </div>
 
         {/* Font Family */}
         <div className="pt-2">
-          <label className="text-xs text-white font-medium block mb-2">Pilihan Jenis Huruf Arab:</label>
-          <div className="grid grid-cols-2 gap-2">
+          <label className="text-xs text-[#222222] font-bold block mb-2">Pilihan Jenis Huruf Arab:</label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {[
               { id: 'Amiri', name: 'Amiri (Mushaf Madinah Klasik)' },
               { id: 'Scheherazade New', name: 'Scheherazade New (Jelas & Luwes)' }
@@ -372,13 +392,14 @@ export const SettingsPage: React.FC = () => {
               <button
                 key={f.id}
                 onClick={() => updateQuranSetting('fontFamily', f.id as any)}
-                className={`p-3 rounded-xl text-left border text-xs font-semibold transition ${
+                className={`p-3.5 rounded-xl text-left border text-xs font-semibold transition flex items-center justify-between ${
                   quranSettings.fontFamily === f.id
-                    ? 'bg-[#1e1a0b] border-[#F6C646] text-[#F6C646]'
-                    : 'bg-black border-[#262626] text-[#CCC] hover:border-[#444]'
+                    ? 'bg-[#FAF3DF] border-[#E5BD58] text-[#C49A3A]'
+                    : 'bg-[#F8F8F8] border-[#EAEAEA] text-[#737373] hover:text-[#222222]'
                 }`}
               >
-                {f.name}
+                <span>{f.name}</span>
+                {quranSettings.fontFamily === f.id && <Check className="w-4 h-4 text-[#C49A3A]" />}
               </button>
             ))}
           </div>
@@ -386,27 +407,32 @@ export const SettingsPage: React.FC = () => {
       </section>
 
       {/* 4. Qari Murottal Favorit */}
-      <section className="bg-[#151515] border border-[#262626] rounded-2xl p-5 space-y-4">
-        <div className="flex items-center gap-2 text-xs font-bold text-[#F6C646] uppercase tracking-wider">
-          <Headphones className="w-4 h-4" />
-          <h2>Qari Murottal Favorit</h2>
+      <section className="bg-white border border-[#EAEAEA] rounded-2xl p-5 sm:p-6 space-y-4 shadow-xs">
+        <div className="flex items-center gap-2.5 border-b border-[#EAEAEA] pb-4">
+          <div className="w-9 h-9 rounded-xl bg-[#FAF3DF] border border-[#E5BD58] flex items-center justify-center text-[#C49A3A]">
+            <Headphones className="w-4 h-4" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-[#222222]">Qari Murottal Pilihan</h2>
+            <p className="text-xs text-[#737373]">Pilih pelantun tilawah favorit Anda</p>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {RECITERS.map((qari) => {
             const isSelected = quranSettings.selectedQari === qari.id;
             return (
               <button
                 key={qari.id}
                 onClick={() => updateQuranSetting('selectedQari', qari.id)}
-                className={`p-3 rounded-xl border text-left flex items-center justify-between text-xs font-semibold transition ${
+                className={`p-3.5 rounded-xl border text-left flex items-center justify-between text-xs font-semibold transition ${
                   isSelected
-                    ? 'bg-[#1e1a0b] border-[#F6C646] text-[#F6C646]'
-                    : 'bg-black border-[#262626] text-[#CCC] hover:border-[#444]'
+                    ? 'bg-[#FAF3DF] border-[#E5BD58] text-[#C49A3A]'
+                    : 'bg-[#F8F8F8] border-[#EAEAEA] text-[#737373] hover:text-[#222222]'
                 }`}
               >
                 <span>{qari.name}</span>
-                {isSelected && <Check className="w-4 h-4 text-[#F6C646]" />}
+                {isSelected && <Check className="w-4 h-4 text-[#C49A3A]" />}
               </button>
             );
           })}
@@ -414,49 +440,60 @@ export const SettingsPage: React.FC = () => {
       </section>
 
       {/* 5. Panduan PWA & Jalur Deployment Multi-Platform */}
-      <section className="bg-[#151515] border border-[#262626] rounded-2xl p-5 space-y-4">
-        <div className="flex items-center gap-2 text-xs font-bold text-[#F6C646] uppercase tracking-wider">
-          <Smartphone className="w-4 h-4" />
-          <h2>Arsitektur PWA & Jalur Rilis Toko Aplikasi</h2>
+      <section className="bg-white border border-[#EAEAEA] rounded-2xl p-5 sm:p-6 space-y-4 shadow-xs">
+        <div className="flex items-center gap-2.5 border-b border-[#EAEAEA] pb-4">
+          <div className="w-9 h-9 rounded-xl bg-[#FAF3DF] border border-[#E5BD58] flex items-center justify-center text-[#C49A3A]">
+            <Smartphone className="w-4 h-4" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-[#222222]">Akses Aplikasi di Seluruh Perangkat</h2>
+            <p className="text-xs text-[#737373]">Gunakan My Dom Qur'an secara offline dan mandiri</p>
+          </div>
         </div>
 
-        <div className="space-y-3 text-xs text-[#CCC] leading-relaxed">
-          <div className="p-3.5 bg-black/60 rounded-xl border border-[#262626] space-y-1">
+        <div className="space-y-3 text-xs text-[#555555] leading-relaxed">
+          <div className="p-3.5 bg-[#F8F8F8] rounded-xl border border-[#EAEAEA] space-y-1">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-white flex items-center gap-1.5">
-                <Smartphone className="w-4 h-4 text-[#F6C646]" />
-                <span>1. Android (Google Play Store)</span>
+              <span className="font-bold text-[#222222] flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-[#FAF3DF] border border-[#E5BD58] flex items-center justify-center text-[#C49A3A]">
+                  <Smartphone className="w-3.5 h-3.5" />
+                </div>
+                <span>1. Android & PWA</span>
               </span>
-              <span className="text-[10px] px-2 py-0.5 rounded bg-[#222] text-[#FFD455]">TWA / Bubblewrap</span>
+              <span className="text-[11px] px-2 py-0.5 rounded-lg bg-[#FAF3DF] text-[#C49A3A] font-bold border border-[#E5BD58]/30">Instan / Offline</span>
             </div>
-            <p className="text-[11px] text-[#AAA]">
-              Dapat dibundel menggunakan <strong>Trusted Web Activity (TWA)</strong> via Google Bubblewrap CLI untuk menghasilkan berkas AAB/APK bertandatangan (signed).
+            <p className="text-[11px] text-[#737373] pl-9">
+              Bisa dipasang langsung ke layar beranda HP melalui tombol "Pasang Aplikasi" di bawah.
             </p>
           </div>
 
-          <div className="p-3.5 bg-black/60 rounded-xl border border-[#262626] space-y-1">
+          <div className="p-3.5 bg-[#F8F8F8] rounded-xl border border-[#EAEAEA] space-y-1">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-white flex items-center gap-1.5">
-                <Laptop className="w-4 h-4 text-[#F6C646]" />
-                <span>2. Apple iOS (App Store)</span>
+              <span className="font-bold text-[#222222] flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-[#FAF3DF] border border-[#E5BD58] flex items-center justify-center text-[#C49A3A]">
+                  <Laptop className="w-3.5 h-3.5" />
+                </div>
+                <span>2. Apple iOS (iPhone & iPad)</span>
               </span>
-              <span className="text-[10px] px-2 py-0.5 rounded bg-[#222] text-[#FFD455]">Capacitor / WebKit</span>
+              <span className="text-[11px] px-2 py-0.5 rounded-lg bg-[#FAF3DF] text-[#C49A3A] font-bold border border-[#E5BD58]/30">Safari Share</span>
             </div>
-            <p className="text-[11px] text-[#AAA]">
-              Dapat dibungkus dengan <strong>Capacitor</strong> untuk akses Xcode, izin sensor kompas (Motion & Orientation), dan background audio permissions.
+            <p className="text-[11px] text-[#737373] pl-9">
+              Buka di Safari &rarr; tekan tombol Bagikan (Share) &rarr; pilih <strong>"Tambahkan ke Layar Utama"</strong>.
             </p>
           </div>
 
-          <div className="p-3.5 bg-black/60 rounded-xl border border-[#262626] space-y-1">
+          <div className="p-3.5 bg-[#F8F8F8] rounded-xl border border-[#EAEAEA] space-y-1">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-white flex items-center gap-1.5">
-                <Monitor className="w-4 h-4 text-[#F6C646]" />
-                <span>3. Desktop (Windows / macOS / Linux)</span>
+              <span className="font-bold text-[#222222] flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-[#FAF3DF] border border-[#E5BD58] flex items-center justify-center text-[#C49A3A]">
+                  <Monitor className="w-3.5 h-3.5" />
+                </div>
+                <span>3. Desktop (Windows / macOS)</span>
               </span>
-              <span className="text-[10px] px-2 py-0.5 rounded bg-[#222] text-[#FFD455]">PWA / Tauri / Electron</span>
+              <span className="text-[11px] px-2 py-0.5 rounded-lg bg-[#FAF3DF] text-[#C49A3A] font-bold border border-[#E5BD58]/30">Chrome / Edge</span>
             </div>
-            <p className="text-[11px] text-[#AAA]">
-              Dapat langsung dipasang melalui browser (Chrome/Edge/Safari) sebagai PWA mandiri atau diekspor ke Tauri/Electron.
+            <p className="text-[11px] text-[#737373] pl-9">
+              Klik ikon instalasi di kolom alamat URL browser untuk menjalankan seperti aplikasi komputer mandiri.
             </p>
           </div>
         </div>
@@ -470,10 +507,10 @@ export const SettingsPage: React.FC = () => {
       <div className="pt-2 flex justify-center">
         <button
           onClick={handleReset}
-          className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-950/30 rounded-xl border border-red-900/40 transition"
+          className="flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-xl border border-rose-200 transition"
         >
           <RotateCcw className="w-3.5 h-3.5" />
-          <span>Kembalikan Semua Pengaturan ke Awal</span>
+          <span>Kembalikan Semua Pengaturan ke Standar Awal</span>
         </button>
       </div>
     </div>

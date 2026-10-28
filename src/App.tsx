@@ -13,10 +13,12 @@ import { AudioPlayerBar } from './components/AudioPlayerBar';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { AdzanAlertModal } from './components/AdzanAlertModal';
 import { DuaDhikrModal } from './components/DuaDhikrModal';
+import { LocationModal } from './components/LocationModal';
 import { quranApi } from './services/quranApi';
-import { prayerTimeService, PRESET_LOCATIONS, LocationInfo } from './services/prayerTimeService';
+import { prayerTimeService, LocationInfo } from './services/prayerTimeService';
 import { audioManager, ActiveAudioAlert } from './services/audioManager';
 import { prayerScheduler } from './services/prayerScheduler';
+import { getSavedLocation, saveLocation, RegencyCity } from './services/indonesiaRegions';
 import { SurahListItem } from './types/quran';
 
 export default function App() {
@@ -27,6 +29,7 @@ export default function App() {
   // Global modals & Audio Alert
   const [activeAlert, setActiveAlert] = useState<ActiveAudioAlert | null>(null);
   const [isDuaModalOpen, setIsDuaModalOpen] = useState<boolean>(false);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState<boolean>(false);
 
   // Surah list cache
   const [surahs, setSurahs] = useState<SurahListItem[]>([]);
@@ -55,15 +58,19 @@ export default function App() {
       setActiveAlert(alert);
     });
 
-    // Initial sync for scheduler
+    // Initial sync for scheduler with saved region
     try {
-      let loc: LocationInfo = PRESET_LOCATIONS[0];
-      const saved = localStorage.getItem('aadom_saved_location');
-      if (saved) {
-        loc = JSON.parse(saved);
-      }
-      const pt = prayerTimeService.calculatePrayerTimes(loc, new Date());
-      prayerScheduler.sync(loc, pt);
+      const loc = getSavedLocation();
+      const locInfo: LocationInfo = {
+        name: loc.name,
+        province: loc.province,
+        country: 'Indonesia',
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        timezone: loc.timezone
+      };
+      const pt = prayerTimeService.calculatePrayerTimes(locInfo, new Date());
+      prayerScheduler.sync(locInfo, pt);
     } catch {
       // Safe fail
     }
@@ -82,6 +89,22 @@ export default function App() {
       prayerScheduler.stop();
     };
   }, []);
+
+  const handleLocationSelected = (location: RegencyCity & { province: string; district?: string }) => {
+    saveLocation(location);
+    const locInfo: LocationInfo = {
+      name: location.name,
+      province: location.province,
+      country: 'Indonesia',
+      latitude: location.latitude,
+      longitude: location.longitude,
+      timezone: location.timezone
+    };
+    const pt = prayerTimeService.calculatePrayerTimes(locInfo, new Date());
+    prayerScheduler.sync(locInfo, pt);
+    setIsLocationModalOpen(false);
+    window.dispatchEvent(new CustomEvent('aadom_location_updated', { detail: location }));
+  };
 
   // Navigation handlers
   const handleSelectTab = (tab: NavTab) => {
@@ -106,7 +129,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col selection:bg-[#F6C646] selection:text-black">
+    <div className="min-h-screen bg-[#FFFFFF] text-[#222222] flex flex-col selection:bg-[#FAF3DF] selection:text-[#C49A3A] transition-colors duration-150">
       {/* Offline Alert Indicator */}
       <OfflineIndicator />
 
@@ -114,9 +137,10 @@ export default function App() {
       <Navbar
         currentTab={currentTab}
         onSelectTab={handleSelectTab}
+        onOpenLocation={() => setIsLocationModalOpen(true)}
       />
 
-      {/* Main Content Area (Tailored for Portrait & Landscape Viewports) */}
+      {/* Main Content Area */}
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 pt-4 pb-28 landscape:pb-24 lg:pb-16 min-h-0">
         {currentTab === 'home' && (
           <HomePage
@@ -128,6 +152,7 @@ export default function App() {
               }
             }}
             onOpenAudioSurah={(surah) => handleOpenSurah(surah)}
+            onOpenLocationModal={() => setIsLocationModalOpen(true)}
           />
         )}
 
@@ -200,6 +225,13 @@ export default function App() {
       <DuaDhikrModal
         isOpen={isDuaModalOpen}
         onClose={() => setIsDuaModalOpen(false)}
+      />
+
+      {/* Global Location Modal */}
+      <LocationModal
+        isOpen={isLocationModalOpen}
+        onClose={() => setIsLocationModalOpen(false)}
+        onLocationSelected={handleLocationSelected}
       />
     </div>
   );

@@ -183,6 +183,14 @@ class AudioService {
     }
   }
 
+  public togglePlayPause(): void {
+    if (this.state.isPlaying) {
+      this.pause();
+    } else {
+      this.resume();
+    }
+  }
+
   public seek(seconds: number): void {
     if (this.audio && Number.isFinite(seconds)) {
       this.audio.currentTime = Math.max(0, Math.min(seconds, this.audio.duration || 0));

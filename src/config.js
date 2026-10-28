@@ -1,11 +1,11 @@
 export const APP_CONFIG = {
-  appName: "AA Dom Qur'an",
-  primaryColor: "#F6C646",
-  backgroundColor: "#000000",
-  surfaceColor: "#151515",
-  accentColor: "#FFD455",
-  textColor: "#FFFFFF",
-  mutedTextColor: "#B8B8B8",
+  appName: "My Dom Qur'an",
+  primaryColor: "#C49A3A",
+  backgroundColor: "#FFFFFF",
+  surfaceColor: "#F8F8F8",
+  accentColor: "#E5BD58",
+  textColor: "#222222",
+  mutedTextColor: "#737373",
   tagline: "Temani Tilawah, Dekatkan Hati dengan Al-Qur'an"
 };
 
